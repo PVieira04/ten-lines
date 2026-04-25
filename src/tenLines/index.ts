@@ -1,5 +1,5 @@
-import { wrap, type Remote } from "comlink";
-import type { MainModule } from "./generated";
+import { proxy, wrap, type Remote } from "comlink";
+import type { InitialSeedResult, MainModule } from "./generated";
 import Worker from "./worker?worker";
 
 export const Game = {
@@ -123,6 +123,53 @@ export function hexSeed(seed: number, bits: number) {
         .padStart(Math.ceil(bits) / 4, "0");
 }
 
+
+export type EarliestReach = {
+    totalFrames: number;
+    totalMs: number;
+    advances: number;
+    seedTimeMs: number;
+    initialSeed: number;
+    settings?: string;
+};
+
+export async function computeEarliestReach(
+    seed: number,
+    game: string,
+    gameConsole: string,
+    seedData: Uint8Array | null
+): Promise<EarliestReach | null> {
+    const lib = await fetchTenLines();
+    const isFRLG = !game.endsWith("painting");
+    const candidates = await new Promise<InitialSeedResult[]>((resolve) => {
+        const cb = proxy((results: InitialSeedResult[]) => resolve(results));
+        if (isFRLG) {
+            if (!seedData) {
+                resolve([]);
+                return;
+            }
+            lib.ten_lines_frlg(seed, 10, 0, game, 0, seedData, cb);
+        } else {
+            lib.ten_lines_painting(seed, 5, 0, cb);
+        }
+    });
+    let best: EarliestReach | null = null;
+    for (const c of candidates) {
+        const totalFrames = c.seedTime / 16 + c.advances;
+        const totalMs = frameToMS(totalFrames, gameConsole);
+        if (best === null || totalMs < best.totalMs) {
+            best = {
+                totalFrames,
+                totalMs,
+                advances: c.advances,
+                seedTimeMs: frameToMS(c.seedTime / 16, gameConsole),
+                initialSeed: c.initialSeed,
+                settings: c.settings,
+            };
+        }
+    }
+    return best;
+}
 
 export function fixGameConsole(game: string, console: string) {
     if (game.endsWith("nx") && !console.startsWith("NX")) {

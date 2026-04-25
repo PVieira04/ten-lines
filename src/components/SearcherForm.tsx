@@ -1,9 +1,21 @@
 import { useState } from "react";
 
-import { Box, Button, MenuItem, TextField } from "@mui/material";
+import {
+    Box,
+    Button,
+    Checkbox,
+    FormControlLabel,
+    FormGroup,
+    MenuItem,
+    TextField,
+    Typography,
+} from "@mui/material";
 
 import fetchTenLines, {
     COMBINED_WILD_METHOD,
+    computeEarliestReach,
+    fetchSeedData,
+    fixGameConsole,
     SEED_IDENTIFIER_TO_GAME,
     STATIC_2,
     STATIC_4,
@@ -25,13 +37,14 @@ import IvEntry from "./IvEntry";
 import StaticEncounterSelector from "./StaticEncounterSelector";
 import { useSearchParams } from "react-router-dom";
 import WildEncounterSelector from "./WildEncounterSelector";
-import SearcherTable from "./SearcherTable";
+import SearcherTable, { type EnrichedSearcherRow } from "./SearcherTable";
 
 export interface SearcherFormState {
     shininess: number;
-    nature: number;
+    natures: boolean[];
     gender: number;
     hiddenPower: number;
+    minHiddenPowerStrength: number;
     ivRangeStrings: [string, string][];
     staticCategory: number;
     staticPokemon: number;
@@ -46,6 +59,7 @@ export interface SearcherURLState {
     game: string;
     trainerID: string;
     secretID: string;
+    gameConsole: string;
 }
 
 function useSearcherURLState() {
@@ -53,6 +67,7 @@ function useSearcherURLState() {
     const game = searchParams.get("game") || "r_painting";
     const trainerID = searchParams.get("trainerID") || "0";
     const secretID = searchParams.get("secretID") || "0";
+    const gameConsole = fixGameConsole(game, searchParams.get("gameConsole") || "GBA");
     const setSearcherURLState = (state: Partial<SearcherURLState>) => {
         setSearchParams((prev) => {
             for (const [key, value] of Object.entries(state)) {
@@ -65,6 +80,7 @@ function useSearcherURLState() {
         game,
         trainerID,
         secretID,
+        gameConsole,
         setSearcherURLState,
     };
 }
@@ -79,9 +95,10 @@ export default function CalibrationForm({
     const [searcherFormState, setSearcherFormState] =
         useState<SearcherFormState>({
             shininess: 255,
-            nature: -1,
+            natures: Array(NATURES_EN.length).fill(true),
             gender: 255,
             hiddenPower: -1,
+            minHiddenPowerStrength: 30,
             ivRangeStrings: [
                 ["0", "31"],
                 ["0", "31"],
@@ -98,11 +115,15 @@ export default function CalibrationForm({
             wildLead: 255,
             method: 1,
         });
-    const { game, trainerID, secretID, setSearcherURLState } =
+    const { game, trainerID, secretID, gameConsole, setSearcherURLState } =
         useSearcherURLState();
 
-    const [rows, setRows] = useState<ExtendedSearcherState[]>([]);
+    const [rawRows, setRawRows] = useState<
+        (ExtendedSearcherState | ExtendedWildSearcherState)[]
+    >([]);
+    const [enrichedRows, setEnrichedRows] = useState<EnrichedSearcherRow[]>([]);
     const [searching, setSearching] = useState(false);
+    const [enriching, setEnriching] = useState(false);
 
     const [ivRangesAreValid, setIvRangesAreValid] = useState(true);
     const ivRanges = ivRangesAreValid
@@ -121,10 +142,62 @@ export default function CalibrationForm({
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (isNotSubmittable) return;
+        const { natures, minHiddenPowerStrength } = searcherFormState;
+        const filterRow = (
+            row: ExtendedSearcherState | ExtendedWildSearcherState
+        ) =>
+            natures[row.nature] &&
+            row.hiddenPowerStrength >= minHiddenPowerStrength;
+
         const submit = async () => {
             const tenLines = await fetchTenLines();
-            setRows([]);
+            setRawRows([]);
+            setEnrichedRows([]);
             setSearching(true);
+
+            const collectedRows: (
+                | ExtendedSearcherState
+                | ExtendedWildSearcherState
+            )[] = [];
+            const appendBatch = (
+                results: (
+                    | ExtendedSearcherState
+                    | ExtendedWildSearcherState
+                )[]
+            ) => {
+                if (collectedRows.length > 1000 || results.length === 0) {
+                    return;
+                }
+                const filtered = results.filter(filterRow);
+                if (filtered.length === 0) return;
+                collectedRows.push(...filtered);
+                setRawRows((rows) => [...rows, ...filtered]);
+            };
+            const onDone = async (stillSearching: boolean) => {
+                setSearching(stillSearching);
+                if (stillSearching) return;
+                setEnriching(true);
+                const seedData = isFRLG ? await fetchSeedData(game) : null;
+                const enriched = await Promise.all(
+                    collectedRows.map(async (row) => {
+                        const earliest = await computeEarliestReach(
+                            row.seed,
+                            game,
+                            gameConsole,
+                            seedData
+                        );
+                        return { ...row, earliest } as EnrichedSearcherRow;
+                    })
+                );
+                enriched.sort((a, b) => {
+                    const aMs = a.earliest?.totalMs ?? Number.POSITIVE_INFINITY;
+                    const bMs = b.earliest?.totalMs ?? Number.POSITIVE_INFINITY;
+                    return aMs - bMs;
+                });
+                setEnrichedRows(enriched);
+                setEnriching(false);
+            };
+
             if (isStatic) {
                 await tenLines.search_seeds_static(
                     SEED_IDENTIFIER_TO_GAME[game],
@@ -134,19 +207,12 @@ export default function CalibrationForm({
                     searcherFormState.staticPokemon,
                     searcherFormState.method,
                     searcherFormState.shininess,
-                    searcherFormState.nature,
+                    -1,
                     searcherFormState.gender,
                     searcherFormState.hiddenPower,
                     ivRanges,
-                    proxy((results: ExtendedSearcherState[]) => {
-                        setRows((rows) => {
-                            if (rows.length > 1000 || results.length === 0) {
-                                return rows;
-                            }
-                            return [...rows, ...results];
-                        });
-                    }),
-                    proxy(setSearching)
+                    proxy(appendBatch),
+                    proxy(onDone)
                 );
             } else {
                 await tenLines.search_seeds_wild(
@@ -159,19 +225,12 @@ export default function CalibrationForm({
                     searcherFormState.method,
                     searcherFormState.wildLead,
                     searcherFormState.shininess,
-                    searcherFormState.nature,
+                    -1,
                     searcherFormState.gender,
                     searcherFormState.hiddenPower,
                     ivRanges,
-                    proxy((results: ExtendedWildSearcherState[]) => {
-                        setRows((rows) => {
-                            if (rows.length > 1000 || results.length === 0) {
-                                return rows;
-                            }
-                            return [...rows, ...results];
-                        });
-                    }),
-                    proxy(setSearching)
+                    proxy(appendBatch),
+                    proxy(onDone)
                 );
             }
         };
@@ -228,6 +287,43 @@ export default function CalibrationForm({
                 <MenuItem value="lg_jpn">LeafGreen (JPN)</MenuItem>
                 <MenuItem value="lg_nx">Switch LeafGreen (ENG/SPA/FRE/ITA/GER)</MenuItem>
                 <MenuItem value="lg_mgba">LeafGreen (ENG) (MGBA 10.5)</MenuItem>
+            </TextField>
+            <TextField
+                label="Console"
+                margin="normal"
+                style={{ textAlign: "left" }}
+                onChange={(event) =>
+                    setSearcherURLState({
+                        gameConsole: fixGameConsole(game, event.target.value),
+                    })
+                }
+                value={gameConsole}
+                select
+                fullWidth
+            >
+                {game.endsWith("nx")
+                    ? [
+                          <MenuItem key="NX" value="NX">
+                              Nintendo Switch 1
+                          </MenuItem>,
+                          <MenuItem key="NX2" value="NX2">
+                              Nintendo Switch 2
+                          </MenuItem>,
+                      ]
+                    : [
+                          <MenuItem key="GBA" value="GBA">
+                              Game Boy Advance
+                          </MenuItem>,
+                          <MenuItem key="GBP" value="GBP">
+                              Game Boy Player
+                          </MenuItem>,
+                          <MenuItem key="NDS" value="NDS">
+                              Nintendo DS
+                          </MenuItem>,
+                          <MenuItem key="3DS" value="3DS">
+                              Nintendo 3DS (open_agb_firm)
+                          </MenuItem>,
+                      ]}
             </TextField>
             <Box sx={{ flexDirection: "row", display: "flex" }}>
                 <NumericalInput
@@ -347,27 +443,62 @@ export default function CalibrationForm({
                 <MenuItem value="2">Square</MenuItem>
                 <MenuItem value="3">Star/Square</MenuItem>
             </TextField>
-            <TextField
-                label="Nature"
-                margin="normal"
-                style={{ textAlign: "left" }}
-                onChange={(event) => {
-                    setSearcherFormState((data) => ({
-                        ...data,
-                        nature: parseInt(event.target.value),
-                    }));
-                }}
-                value={searcherFormState.nature}
-                select
-                fullWidth
-            >
-                <MenuItem value="-1">Any</MenuItem>
-                {NATURES_EN.map((nature, index) => (
-                    <MenuItem key={index} value={index}>
-                        {nature}
-                    </MenuItem>
-                ))}
-            </TextField>
+            <Box sx={{ mt: 2, mb: 1, textAlign: "left" }}>
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                    Natures
+                </Typography>
+                <Box sx={{ mb: 0.5 }}>
+                    <Button
+                        size="small"
+                        onClick={() =>
+                            setSearcherFormState((data) => ({
+                                ...data,
+                                natures: Array(NATURES_EN.length).fill(true),
+                            }))
+                        }
+                    >
+                        All
+                    </Button>
+                    <Button
+                        size="small"
+                        onClick={() =>
+                            setSearcherFormState((data) => ({
+                                ...data,
+                                natures: Array(NATURES_EN.length).fill(false),
+                            }))
+                        }
+                    >
+                        None
+                    </Button>
+                </Box>
+                <FormGroup
+                    sx={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(5, 1fr)",
+                    }}
+                >
+                    {NATURES_EN.map((nature, index) => (
+                        <FormControlLabel
+                            key={index}
+                            control={
+                                <Checkbox
+                                    size="small"
+                                    checked={searcherFormState.natures[index]}
+                                    onChange={(event) => {
+                                        const checked = event.target.checked;
+                                        setSearcherFormState((data) => {
+                                            const next = data.natures.slice();
+                                            next[index] = checked;
+                                            return { ...data, natures: next };
+                                        });
+                                    }}
+                                />
+                            }
+                            label={nature}
+                        />
+                    ))}
+                </FormGroup>
+            </Box>
             <TextField
                 label="Gender"
                 margin="normal"
@@ -410,6 +541,22 @@ export default function CalibrationForm({
                     </MenuItem>
                 ))}
             </TextField>
+            <NumericalInput
+                label="Min Hidden Power BP (30–70)"
+                name="minHiddenPowerStrength"
+                margin="normal"
+                minimumValue={30}
+                maximumValue={70}
+                isHex={false}
+                value={searcherFormState.minHiddenPowerStrength.toString()}
+                onChange={(_event, value) => {
+                    if (!value.isValid) return;
+                    setSearcherFormState((data) => ({
+                        ...data,
+                        minHiddenPowerStrength: parseInt(value.value, 10),
+                    }));
+                }}
+            />
             <IvEntry
                 onChange={(_event, value) => {
                     setIvRangesAreValid(value.isValid);
@@ -427,11 +574,21 @@ export default function CalibrationForm({
                 disabled={isNotSubmittable}
                 fullWidth
             >
-                {searching ? "Searching..." : "Submit"}
+                {searching
+                    ? "Searching..."
+                    : enriching
+                        ? "Computing reach times..."
+                        : "Submit"}
             </Button>
             <SearcherTable
-                rows={rows}
+                rows={
+                    enrichedRows.length > 0
+                        ? enrichedRows
+                        : (rawRows as EnrichedSearcherRow[])
+                }
                 isStatic={isStatic}
+                isFRLG={isFRLG}
+                gameConsole={gameConsole}
                 isMultiMethod={
                     searcherFormState.method === COMBINED_WILD_METHOD
                 }
