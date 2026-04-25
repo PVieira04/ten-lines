@@ -44,7 +44,7 @@ export interface SearcherFormState {
     natures: boolean[];
     gender: number;
     hiddenPower: number;
-    minHiddenPowerStrength: number;
+    minHiddenPowerStrengthString: string;
     ivRangeStrings: [string, string][];
     staticCategory: number;
     staticPokemon: number;
@@ -98,7 +98,7 @@ export default function CalibrationForm({
             natures: Array(NATURES_EN.length).fill(true),
             gender: 255,
             hiddenPower: -1,
-            minHiddenPowerStrength: 30,
+            minHiddenPowerStrengthString: "30",
             ivRangeStrings: [
                 ["0", "31"],
                 ["0", "31"],
@@ -142,7 +142,15 @@ export default function CalibrationForm({
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (isNotSubmittable) return;
-        const { natures, minHiddenPowerStrength } = searcherFormState;
+        const { natures } = searcherFormState;
+        const minHpParsed = parseInt(
+            searcherFormState.minHiddenPowerStrengthString,
+            10
+        );
+        const minHiddenPowerStrength =
+            Number.isFinite(minHpParsed) && minHpParsed >= 30 && minHpParsed <= 70
+                ? minHpParsed
+                : 30;
         const filterRow = (
             row: ExtendedSearcherState | ExtendedWildSearcherState
         ) =>
@@ -548,12 +556,11 @@ export default function CalibrationForm({
                 minimumValue={30}
                 maximumValue={70}
                 isHex={false}
-                value={searcherFormState.minHiddenPowerStrength.toString()}
+                value={searcherFormState.minHiddenPowerStrengthString}
                 onChange={(_event, value) => {
-                    if (!value.isValid) return;
                     setSearcherFormState((data) => ({
                         ...data,
-                        minHiddenPowerStrength: parseInt(value.value, 10),
+                        minHiddenPowerStrengthString: value.value,
                     }));
                 }}
             />
