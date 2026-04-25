@@ -148,9 +148,9 @@ export default function CalibrationForm({
             10
         );
         const minHiddenPowerStrength =
-            Number.isFinite(minHpParsed) && minHpParsed >= 30 && minHpParsed <= 70
+            Number.isFinite(minHpParsed) && minHpParsed >= 0 && minHpParsed <= 70
                 ? minHpParsed
-                : 30;
+                : 0;
         const filterRow = (
             row: ExtendedSearcherState | ExtendedWildSearcherState
         ) =>
@@ -550,10 +550,10 @@ export default function CalibrationForm({
                 ))}
             </TextField>
             <NumericalInput
-                label="Min Hidden Power BP (30–70)"
+                label="Min Hidden Power BP (0–70, 0 disables)"
                 name="minHiddenPowerStrength"
                 margin="normal"
-                minimumValue={30}
+                minimumValue={0}
                 maximumValue={70}
                 isHex={false}
                 value={searcherFormState.minHiddenPowerStrengthString}
