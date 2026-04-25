@@ -164,7 +164,7 @@ export async function computeEarliestReach(
                 advances: c.advances,
                 seedTimeMs: frameToMS(c.seedTime / 16, gameConsole),
                 initialSeed: c.initialSeed,
-                settings: c.settings,
+                settings: c.settings as string | undefined,
             };
         }
     }
