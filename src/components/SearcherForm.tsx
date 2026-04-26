@@ -478,6 +478,30 @@ export default function CalibrationForm({
                     isSearcher
                 />
             )}
+            {abilityIds && abilityIds[0] !== abilityIds[1] && (
+                <TextField
+                    label="Ability"
+                    margin="normal"
+                    style={{ textAlign: "left" }}
+                    onChange={(event) => {
+                        setSearcherFormState((data) => ({
+                            ...data,
+                            ability: parseInt(event.target.value),
+                        }));
+                    }}
+                    value={searcherFormState.ability}
+                    select
+                    fullWidth
+                >
+                    <MenuItem value="-1">Any</MenuItem>
+                    <MenuItem value="0">
+                        {ABILITIES_EN[abilityIds[0] - 1]}
+                    </MenuItem>
+                    <MenuItem value="1">
+                        {ABILITIES_EN[abilityIds[1] - 1]}
+                    </MenuItem>
+                </TextField>
+            )}
             <TextField
                 label="Shininess"
                 margin="normal"
@@ -574,30 +598,6 @@ export default function CalibrationForm({
                     </MenuItem>
                 ))}
             </TextField>
-            {abilityIds && abilityIds[0] !== abilityIds[1] && (
-                <TextField
-                    label="Ability"
-                    margin="normal"
-                    style={{ textAlign: "left" }}
-                    onChange={(event) => {
-                        setSearcherFormState((data) => ({
-                            ...data,
-                            ability: parseInt(event.target.value),
-                        }));
-                    }}
-                    value={searcherFormState.ability}
-                    select
-                    fullWidth
-                >
-                    <MenuItem value="-1">Any</MenuItem>
-                    <MenuItem value="0">
-                        {ABILITIES_EN[abilityIds[0] - 1]}
-                    </MenuItem>
-                    <MenuItem value="1">
-                        {ABILITIES_EN[abilityIds[1] - 1]}
-                    </MenuItem>
-                </TextField>
-            )}
             <TextField
                 label="Hidden Power"
                 margin="normal"
