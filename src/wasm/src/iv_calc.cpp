@@ -69,10 +69,31 @@ emscripten::typed_array<IVRange> calc_ivs_generic(
     return calc_ivs(stats, baseStats, nature);
 }
 
+emscripten::typed_array<u16> get_static_template_abilities(int category, int template_index)
+{
+    const StaticTemplate3* static_template = category == BlisyEvents::CATEGORY ? BlisyEvents::get_template(template_index) : Encounters3::getStaticEncounter(category, template_index);
+    const PersonalInfo* info = static_template->getInfo();
+    emscripten::typed_array<u16> result;
+    result.push_back(info->getAbility(0));
+    result.push_back(info->getAbility(1));
+    return result;
+}
+
+emscripten::typed_array<u16> get_pokemon_abilities(u16 species, u8 form)
+{
+    const PersonalInfo* info = PersonalLoader::getPersonal(Game::Gen3, species, form);
+    emscripten::typed_array<u16> result;
+    result.push_back(info->getAbility(0));
+    result.push_back(info->getAbility(1));
+    return result;
+}
+
 EMSCRIPTEN_BINDINGS(iv_calc)
 {
     emscripten::smart_function("calc_ivs_static", &calc_ivs_static);
     emscripten::smart_function("calc_ivs_generic", &calc_ivs_generic);
+    emscripten::smart_function("get_static_template_abilities", &get_static_template_abilities);
+    emscripten::smart_function("get_pokemon_abilities", &get_pokemon_abilities);
     emscripten::value_object<IVRange>("IVRange")
         .field("min", &IVRange::min)
         .field("max", &IVRange::max);

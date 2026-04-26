@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
     Box,
@@ -28,6 +28,7 @@ import {
 } from "../tenLines/generated";
 import React from "react";
 import {
+    ABILITIES_EN,
     GENDERS_EN,
     METHODS_EN,
     NATURES_EN,
@@ -43,6 +44,7 @@ export interface SearcherFormState {
     shininess: number;
     natures: boolean[];
     gender: number;
+    ability: number;
     hiddenPower: number;
     minHiddenPowerStrengthString: string;
     ivRangeStrings: [string, string][];
@@ -97,6 +99,7 @@ export default function CalibrationForm({
             shininess: 255,
             natures: Array(NATURES_EN.length).fill(true),
             gender: 255,
+            ability: -1,
             hiddenPower: -1,
             minHiddenPowerStrengthString: "30",
             ivRangeStrings: [
@@ -124,6 +127,47 @@ export default function CalibrationForm({
     const [enrichedRows, setEnrichedRows] = useState<EnrichedSearcherRow[]>([]);
     const [searching, setSearching] = useState(false);
     const [enriching, setEnriching] = useState(false);
+    const [abilityIds, setAbilityIds] = useState<[number, number] | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        const isStaticLocal = searcherFormState.method <= STATIC_4;
+        const load = async () => {
+            const lib = await fetchTenLines();
+            try {
+                const result = isStaticLocal
+                    ? await lib.get_static_template_abilities(
+                          searcherFormState.staticCategory,
+                          searcherFormState.staticPokemon
+                      )
+                    : await lib.get_pokemon_abilities(
+                          searcherFormState.wildPokemon & 0x7ff,
+                          searcherFormState.wildPokemon >> 11
+                      );
+                if (!cancelled) {
+                    setAbilityIds([result[0], result[1]]);
+                    if (result[0] === result[1]) {
+                        setSearcherFormState((data) => ({ ...data, ability: -1 }));
+                    }
+                }
+            } catch {
+                if (!cancelled) {
+                    setAbilityIds(null);
+                    setSearcherFormState((data) => ({ ...data, ability: -1 }));
+                }
+            }
+        };
+        setAbilityIds(null);
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        searcherFormState.method,
+        searcherFormState.staticCategory,
+        searcherFormState.staticPokemon,
+        searcherFormState.wildPokemon,
+    ]);
 
     const [ivRangesAreValid, setIvRangesAreValid] = useState(true);
     const ivRanges = ivRangesAreValid
@@ -151,11 +195,13 @@ export default function CalibrationForm({
             Number.isFinite(minHpParsed) && minHpParsed >= 0 && minHpParsed <= 70
                 ? minHpParsed
                 : 0;
+        const { ability } = searcherFormState;
         const filterRow = (
             row: ExtendedSearcherState | ExtendedWildSearcherState
         ) =>
             natures[row.nature] &&
-            row.hiddenPowerStrength >= minHiddenPowerStrength;
+            row.hiddenPowerStrength >= minHiddenPowerStrength &&
+            (ability === -1 || row.ability === ability);
 
         const submit = async () => {
             const tenLines = await fetchTenLines();
@@ -528,6 +574,30 @@ export default function CalibrationForm({
                     </MenuItem>
                 ))}
             </TextField>
+            {abilityIds && abilityIds[0] !== abilityIds[1] && (
+                <TextField
+                    label="Ability"
+                    margin="normal"
+                    style={{ textAlign: "left" }}
+                    onChange={(event) => {
+                        setSearcherFormState((data) => ({
+                            ...data,
+                            ability: parseInt(event.target.value),
+                        }));
+                    }}
+                    value={searcherFormState.ability}
+                    select
+                    fullWidth
+                >
+                    <MenuItem value="-1">Any</MenuItem>
+                    <MenuItem value="0">
+                        {ABILITIES_EN[abilityIds[0] - 1]}
+                    </MenuItem>
+                    <MenuItem value="1">
+                        {ABILITIES_EN[abilityIds[1] - 1]}
+                    </MenuItem>
+                </TextField>
+            )}
             <TextField
                 label="Hidden Power"
                 margin="normal"
