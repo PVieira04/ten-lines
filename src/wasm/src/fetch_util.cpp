@@ -44,7 +44,7 @@ emscripten::typed_array<EnumeratedStaticTemplate3> get_static_template_info(int 
     return array;
 }
 
-emscripten::typed_array<EncounterRef> get_encounters_for_species(u32 game, u16 species_form)
+emscripten::typed_array<EncounterRef> get_encounters_for_species(u32 game, u16 specie)
 {
     emscripten::typed_array<EncounterRef> result;
     EncounterSettings3 settings;
@@ -54,14 +54,19 @@ emscripten::typed_array<EncounterRef> get_encounters_for_species(u32 game, u16 s
         auto areas = Encounters3::getEncounters(Encounter(cat), settings, Game(game));
         for (size_t i = 0; i < areas.size(); i++) {
             auto species = areas[i].getUniqueSpecies();
-            if (std::find(species.begin(), species.end(), species_form) != species.end()) {
+            bool matched = false;
+            for (u16 sf : species) {
+                if ((sf & 0x7ff) == specie) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (matched) {
                 result.push_back({ 0, cat, static_cast<int>(i) });
             }
         }
     }
 
-    u16 specie = species_form & 0x7ff;
-    u8 form = species_form >> 11;
     static constexpr int static_categories[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
     for (int cat : static_categories) {
         int size;
@@ -69,7 +74,6 @@ emscripten::typed_array<EncounterRef> get_encounters_for_species(u32 game, u16 s
         for (int i = 0; i < size; i++) {
             const StaticTemplate3& t = templates[i];
             if (t.getSpecie() == specie
-                && t.getForm() == form
                 && (static_cast<u32>(t.getVersion()) & game) != 0) {
                 result.push_back({ 1, static_cast<u8>(cat), i });
             }
@@ -79,7 +83,6 @@ emscripten::typed_array<EncounterRef> get_encounters_for_species(u32 game, u16 s
     for (int i = 0; i < BlisyEvents::COUNT; i++) {
         const EnumeratedStaticTemplate3* t = BlisyEvents::get_template(i);
         if (t->getSpecie() == specie
-            && t->getForm() == form
             && (static_cast<u32>(t->getVersion()) & game) != 0) {
             result.push_back({ 1, static_cast<u8>(BlisyEvents::CATEGORY), t->index });
         }
