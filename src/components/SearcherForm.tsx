@@ -40,6 +40,8 @@ import { useSearchParams } from "react-router-dom";
 import WildEncounterSelector from "./WildEncounterSelector";
 import SearcherTable, { type EnrichedSearcherRow } from "./SearcherTable";
 
+const NATURE_STAT_LABELS = ["Atk", "Def", "Spe", "SpA", "SpD"] as const;
+
 export interface SearcherFormState {
     shininess: number;
     natures: boolean[];
@@ -549,33 +551,127 @@ export default function CalibrationForm({
                         None
                     </Button>
                 </Box>
-                <FormGroup
+                <Box
                     sx={{
                         display: "grid",
-                        gridTemplateColumns: "repeat(5, 1fr)",
+                        gridTemplateColumns: "auto repeat(5, 1fr)",
+                        border: "1px solid",
+                        borderColor: "divider",
+                        borderRadius: 1,
+                        overflow: "hidden",
                     }}
                 >
-                    {NATURES_EN.map((nature, index) => (
-                        <FormControlLabel
-                            key={index}
-                            control={
-                                <Checkbox
-                                    size="small"
-                                    checked={searcherFormState.natures[index]}
-                                    onChange={(event) => {
-                                        const checked = event.target.checked;
-                                        setSearcherFormState((data) => {
-                                            const next = data.natures.slice();
-                                            next[index] = checked;
-                                            return { ...data, natures: next };
-                                        });
-                                    }}
-                                />
+                    <Box
+                        sx={{
+                            p: 0.5,
+                            textAlign: "center",
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                            bgcolor: "action.hover",
+                        }}
+                    >
+                        ↑ \ ↓
+                    </Box>
+                    {NATURE_STAT_LABELS.map((stat, c) => (
+                        <Box
+                            key={`col-${c}`}
+                            onClick={() =>
+                                setSearcherFormState((data) => {
+                                    const allOn = NATURE_STAT_LABELS.every(
+                                        (_, r) => data.natures[r * 5 + c]
+                                    );
+                                    const next = data.natures.slice();
+                                    for (let r = 0; r < 5; r++)
+                                        next[r * 5 + c] = !allOn;
+                                    return { ...data, natures: next };
+                                })
                             }
-                            label={nature}
-                        />
+                            sx={{
+                                p: 0.5,
+                                textAlign: "center",
+                                fontSize: "0.75rem",
+                                fontWeight: 600,
+                                bgcolor: "#bbdefb",
+                                color: "#0d47a1",
+                                cursor: "pointer",
+                                userSelect: "none",
+                                "&:hover": { bgcolor: "#90caf9" },
+                            }}
+                        >
+                            ↓ {stat}
+                        </Box>
                     ))}
-                </FormGroup>
+                    {NATURE_STAT_LABELS.map((rowStat, r) => (
+                        <React.Fragment key={`row-${r}`}>
+                            <Box
+                                onClick={() =>
+                                    setSearcherFormState((data) => {
+                                        const start = r * 5;
+                                        const allOn = data.natures
+                                            .slice(start, start + 5)
+                                            .every(Boolean);
+                                        const next = data.natures.slice();
+                                        for (let c = 0; c < 5; c++)
+                                            next[start + c] = !allOn;
+                                        return { ...data, natures: next };
+                                    })
+                                }
+                                sx={{
+                                    p: 0.5,
+                                    textAlign: "center",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 600,
+                                    bgcolor: "#ffcdd2",
+                                    color: "#b71c1c",
+                                    cursor: "pointer",
+                                    userSelect: "none",
+                                    "&:hover": { bgcolor: "#ef9a9a" },
+                                }}
+                            >
+                                ↑ {rowStat}
+                            </Box>
+                            {NATURE_STAT_LABELS.map((_, c) => {
+                                const idx = r * 5 + c;
+                                return (
+                                    <FormControlLabel
+                                        key={`cell-${idx}`}
+                                        sx={{
+                                            m: 0,
+                                            justifyContent: "center",
+                                            whiteSpace: "nowrap",
+                                        }}
+                                        control={
+                                            <Checkbox
+                                                size="small"
+                                                checked={
+                                                    searcherFormState.natures[
+                                                        idx
+                                                    ]
+                                                }
+                                                onChange={(event) => {
+                                                    const checked =
+                                                        event.target.checked;
+                                                    setSearcherFormState(
+                                                        (data) => {
+                                                            const next =
+                                                                data.natures.slice();
+                                                            next[idx] = checked;
+                                                            return {
+                                                                ...data,
+                                                                natures: next,
+                                                            };
+                                                        }
+                                                    );
+                                                }}
+                                            />
+                                        }
+                                        label={NATURES_EN[idx]}
+                                    />
+                                );
+                            })}
+                        </React.Fragment>
+                    ))}
+                </Box>
             </Box>
             <TextField
                 label="Gender"
