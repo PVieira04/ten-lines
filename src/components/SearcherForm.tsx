@@ -148,12 +148,12 @@ export default function CalibrationForm({
             hiddenPowerTypes: Array(TYPES_EN.length).fill(true),
             minHiddenPowerStrengthString: "",
             ivRangeStrings: [
-                ["0", "31"],
-                ["0", "31"],
-                ["0", "31"],
-                ["0", "31"],
-                ["0", "31"],
-                ["0", "31"],
+                ["", ""],
+                ["", ""],
+                ["", ""],
+                ["", ""],
+                ["", ""],
+                ["", ""],
             ],
             species: parseInt(species, 10) || 0,
             selectedKeys: new Set<EncounterKey>(),
@@ -232,10 +232,14 @@ export default function CalibrationForm({
 
     const [ivRangesAreValid, setIvRangesAreValid] = useState(true);
     const ivRanges = ivRangesAreValid
-        ? searcherFormState.ivRangeStrings.map((range) => [
-            parseInt(range[0], 10),
-            parseInt(range[1], 10),
-        ])
+        ? searcherFormState.ivRangeStrings.map((range) => {
+            const min = parseInt(range[0], 10);
+            const max = parseInt(range[1], 10);
+            return [
+                Number.isFinite(min) ? min : 0,
+                Number.isFinite(max) ? max : 31,
+            ];
+        })
         : [];
 
     const [trainerIDIsValid, setTrainerIDIsValid] = useState(true);
@@ -1062,6 +1066,7 @@ export default function CalibrationForm({
                     }));
                 }}
                 value={searcherFormState.ivRangeStrings}
+                allowEmpty
             />
             <Button
                 variant="contained"

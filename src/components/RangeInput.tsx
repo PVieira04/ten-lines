@@ -10,6 +10,9 @@ function RangeInput({
     maximumValue,
     onChange,
     resetButton = false,
+    allowEmpty = false,
+    minPlaceholder,
+    maxPlaceholder,
     ...props
 }: {
     label: string;
@@ -25,18 +28,26 @@ function RangeInput({
         }
     ) => void;
     resetButton?: boolean;
+    allowEmpty?: boolean;
+    minPlaceholder?: string;
+    maxPlaceholder?: string;
     [key: string]: any;
 }) {
     const [minValid, setMinValid] = useState(true);
     const [maxValid, setMaxValid] = useState(true);
+    const effMin = (s: string) =>
+        allowEmpty && s === "" ? minimumValue : parseInt(s);
+    const effMax = (s: string) =>
+        allowEmpty && s === "" ? maximumValue : parseInt(s);
     const minChange = (
         event: React.ChangeEvent<HTMLInputElement>,
         { value: newMin, isValid: newMinValid }: { value: string; isValid: boolean }
     ) => {
         setMinValid(newMinValid);
-        // Re-evaluate max validity with the new min boundary
+        const maxN = effMax(value[1]);
+        const newMinN = effMin(newMin);
         const newMaxValid = newMinValid
-            ? parseInt(value[1]) >= parseInt(newMin) && parseInt(value[1]) <= maximumValue
+            ? maxN >= newMinN && maxN <= maximumValue
             : maxValid;
         if (newMaxValid !== maxValid) setMaxValid(newMaxValid);
         onChange(event, {
@@ -49,9 +60,10 @@ function RangeInput({
         { value: newMax, isValid: newMaxValid }: { value: string; isValid: boolean }
     ) => {
         setMaxValid(newMaxValid);
-        // Re-evaluate min validity with the new max boundary
+        const minN = effMin(value[0]);
+        const newMaxN = effMax(newMax);
         const newMinValid = newMaxValid
-            ? parseInt(value[0]) >= minimumValue && parseInt(value[0]) <= parseInt(newMax)
+            ? minN >= minimumValue && minN <= newMaxN
             : minValid;
         if (newMinValid !== minValid) setMinValid(newMinValid);
         onChange(event, {
@@ -66,9 +78,11 @@ function RangeInput({
                 label={`Minimum ${label}`}
                 name={name}
                 minimumValue={minimumValue}
-                maximumValue={maxValid ? parseInt(value[1]) : maximumValue}
+                maximumValue={maxValid ? effMax(value[1]) : maximumValue}
                 onChange={minChange}
                 value={value[0]}
+                allowEmpty={allowEmpty}
+                placeholder={minPlaceholder}
                 {...props}
             />
             <span
@@ -82,10 +96,12 @@ function RangeInput({
             <NumericalInput
                 label={`Maximum ${label}`}
                 name={name}
-                minimumValue={minValid ? parseInt(value[0]) : minimumValue}
+                minimumValue={minValid ? effMin(value[0]) : minimumValue}
                 maximumValue={maximumValue}
                 onChange={maxChange}
                 value={value[1]}
+                allowEmpty={allowEmpty}
+                placeholder={maxPlaceholder}
                 {...props}
             />
             {resetButton && (
@@ -95,10 +111,12 @@ function RangeInput({
                         setMaxValid(true);
                         // TODO: this is hacky but nothing currently actually cares about the event
                         onChange(e as any, {
-                            value: [
-                                minimumValue.toString(),
-                                maximumValue.toString(),
-                            ],
+                            value: allowEmpty
+                                ? ["", ""]
+                                : [
+                                      minimumValue.toString(),
+                                      maximumValue.toString(),
+                                  ],
                             isValid: true,
                         });
                     }}

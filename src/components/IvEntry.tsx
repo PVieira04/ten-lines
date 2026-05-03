@@ -5,13 +5,18 @@ import React from "react";
 function IvEntry({
     value,
     onChange,
+    allowEmpty = false,
 }: {
     value: [string, string][];
     onChange: (
         event: React.ChangeEvent<HTMLInputElement>,
         value: { value: [string, string][]; isValid: boolean }
     ) => void;
+    allowEmpty?: boolean;
 }) {
+    const sharedProps = allowEmpty
+        ? { allowEmpty: true, minPlaceholder: "0", maxPlaceholder: "31" }
+        : {};
     const [ivRangeVailidities, setIvRangeVailidities] = useState([
         true,
         true,
@@ -51,6 +56,7 @@ function IvEntry({
                 minimumValue={0}
                 maximumValue={31}
                 resetButton
+                {...sharedProps}
             />
             <RangeInput
                 label="Attack"
@@ -60,6 +66,7 @@ function IvEntry({
                 minimumValue={0}
                 maximumValue={31}
                 resetButton
+                {...sharedProps}
             />
             <RangeInput
                 label="Defense"
@@ -69,6 +76,7 @@ function IvEntry({
                 minimumValue={0}
                 maximumValue={31}
                 resetButton
+                {...sharedProps}
             />
             <RangeInput
                 label="Special Attack"
@@ -78,6 +86,7 @@ function IvEntry({
                 minimumValue={0}
                 maximumValue={31}
                 resetButton
+                {...sharedProps}
             />
             <RangeInput
                 label="Special Defense"
@@ -87,6 +96,7 @@ function IvEntry({
                 minimumValue={0}
                 maximumValue={31}
                 resetButton
+                {...sharedProps}
             />
             <RangeInput
                 label="Speed"
@@ -96,6 +106,7 @@ function IvEntry({
                 minimumValue={0}
                 maximumValue={31}
                 resetButton
+                {...sharedProps}
             />
         </React.Fragment>
     );
