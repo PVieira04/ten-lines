@@ -536,126 +536,141 @@ export default function CalibrationForm({
                         None
                     </Button>
                 </Box>
-                <Box
-                    sx={{
-                        display: "grid",
-                        gridTemplateColumns: "auto repeat(5, 1fr)",
-                        border: "1px solid",
-                        borderColor: "divider",
-                        borderRadius: 1,
-                        overflow: "hidden",
-                    }}
-                >
+                <Box sx={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
                     <Box
                         sx={{
-                            p: 0.5,
-                            textAlign: "center",
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            bgcolor: "action.hover",
+                            display: "grid",
+                            gridTemplateColumns: "auto repeat(5, minmax(56px, 1fr))",
+                            gap: "1px",
+                            bgcolor: "divider",
+                            border: "1px solid",
+                            borderColor: "divider",
+                            borderRadius: 1,
+                            overflow: "hidden",
+                            minWidth: 340,
                         }}
                     >
-                        ↑ \ ↓
-                    </Box>
-                    {NATURE_STAT_LABELS.map((stat, c) => (
                         <Box
-                            key={`col-${c}`}
-                            onClick={() =>
-                                setSearcherFormState((data) => {
-                                    const allOn = NATURE_STAT_LABELS.every(
-                                        (_, r) => data.natures[r * 5 + c]
-                                    );
-                                    const next = data.natures.slice();
-                                    for (let r = 0; r < 5; r++)
-                                        next[r * 5 + c] = !allOn;
-                                    return { ...data, natures: next };
-                                })
-                            }
                             sx={{
-                                p: 0.5,
+                                px: 0.5,
+                                py: 0.5,
                                 textAlign: "center",
-                                fontSize: "0.75rem",
+                                fontSize: { xs: "0.65rem", sm: "0.75rem" },
                                 fontWeight: 600,
-                                bgcolor: "#bbdefb",
-                                color: "#0d47a1",
-                                cursor: "pointer",
-                                userSelect: "none",
-                                "&:hover": { bgcolor: "#90caf9" },
+                                bgcolor: "action.hover",
                             }}
                         >
-                            ↓ {stat}
+                            ↑ \ ↓
                         </Box>
-                    ))}
-                    {NATURE_STAT_LABELS.map((rowStat, r) => (
-                        <React.Fragment key={`row-${r}`}>
+                        {NATURE_STAT_LABELS.map((stat, c) => (
                             <Box
+                                key={`col-${c}`}
                                 onClick={() =>
                                     setSearcherFormState((data) => {
-                                        const start = r * 5;
-                                        const allOn = data.natures
-                                            .slice(start, start + 5)
-                                            .every(Boolean);
+                                        const allOn = NATURE_STAT_LABELS.every(
+                                            (_, r) => data.natures[r * 5 + c]
+                                        );
                                         const next = data.natures.slice();
-                                        for (let c = 0; c < 5; c++)
-                                            next[start + c] = !allOn;
+                                        for (let r = 0; r < 5; r++)
+                                            next[r * 5 + c] = !allOn;
                                         return { ...data, natures: next };
                                     })
                                 }
                                 sx={{
-                                    p: 0.5,
+                                    px: 0.5,
+                                    py: 0.5,
                                     textAlign: "center",
-                                    fontSize: "0.75rem",
+                                    fontSize: { xs: "0.65rem", sm: "0.75rem" },
                                     fontWeight: 600,
-                                    bgcolor: "#ffcdd2",
-                                    color: "#b71c1c",
+                                    bgcolor: "#bbdefb",
+                                    color: "#0d47a1",
                                     cursor: "pointer",
                                     userSelect: "none",
-                                    "&:hover": { bgcolor: "#ef9a9a" },
+                                    "&:hover": { bgcolor: "#90caf9" },
                                 }}
                             >
-                                ↑ {rowStat}
+                                ↓ {stat}
                             </Box>
-                            {NATURE_STAT_LABELS.map((_, c) => {
-                                const idx = r * 5 + c;
-                                return (
-                                    <FormControlLabel
-                                        key={`cell-${idx}`}
-                                        sx={{
-                                            m: 0,
-                                            justifyContent: "center",
-                                            whiteSpace: "nowrap",
-                                        }}
-                                        control={
-                                            <Checkbox
-                                                size="small"
-                                                checked={
-                                                    searcherFormState.natures[
-                                                        idx
-                                                    ]
-                                                }
-                                                onChange={(event) => {
-                                                    const checked =
-                                                        event.target.checked;
-                                                    setSearcherFormState(
-                                                        (data) => {
-                                                            const next =
-                                                                data.natures.slice();
-                                                            next[idx] = checked;
-                                                            return {
-                                                                ...data,
-                                                                natures: next,
-                                                            };
-                                                        }
-                                                    );
-                                                }}
-                                            />
-                                        }
-                                        label={NATURES_EN[idx]}
-                                    />
-                                );
-                            })}
-                        </React.Fragment>
-                    ))}
+                        ))}
+                        {NATURE_STAT_LABELS.map((rowStat, r) => (
+                            <React.Fragment key={`row-${r}`}>
+                                <Box
+                                    onClick={() =>
+                                        setSearcherFormState((data) => {
+                                            const start = r * 5;
+                                            const allOn = data.natures
+                                                .slice(start, start + 5)
+                                                .every(Boolean);
+                                            const next = data.natures.slice();
+                                            for (let c = 0; c < 5; c++)
+                                                next[start + c] = !allOn;
+                                            return { ...data, natures: next };
+                                        })
+                                    }
+                                    sx={{
+                                        px: 0.5,
+                                        py: 0.5,
+                                        textAlign: "center",
+                                        fontSize: { xs: "0.65rem", sm: "0.75rem" },
+                                        fontWeight: 600,
+                                        bgcolor: "#ffcdd2",
+                                        color: "#b71c1c",
+                                        cursor: "pointer",
+                                        userSelect: "none",
+                                        "&:hover": { bgcolor: "#ef9a9a" },
+                                    }}
+                                >
+                                    ↑ {rowStat}
+                                </Box>
+                                {NATURE_STAT_LABELS.map((_, c) => {
+                                    const idx = r * 5 + c;
+                                    const selected =
+                                        searcherFormState.natures[idx];
+                                    return (
+                                        <Box
+                                            key={`cell-${idx}`}
+                                            onClick={() =>
+                                                setSearcherFormState((data) => {
+                                                    const next =
+                                                        data.natures.slice();
+                                                    next[idx] = !next[idx];
+                                                    return {
+                                                        ...data,
+                                                        natures: next,
+                                                    };
+                                                })
+                                            }
+                                            sx={{
+                                                px: 0.5,
+                                                py: 0.75,
+                                                textAlign: "center",
+                                                fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                                                fontWeight: selected ? 600 : 400,
+                                                bgcolor: selected
+                                                    ? "#2e7d32"
+                                                    : "#212121",
+                                                color: selected
+                                                    ? "#ffffff"
+                                                    : "#9e9e9e",
+                                                cursor: "pointer",
+                                                userSelect: "none",
+                                                whiteSpace: "nowrap",
+                                                transition:
+                                                    "background-color 100ms",
+                                                "&:hover": {
+                                                    bgcolor: selected
+                                                        ? "#388e3c"
+                                                        : "#424242",
+                                                },
+                                            }}
+                                        >
+                                            {NATURES_EN[idx]}
+                                        </Box>
+                                    );
+                                })}
+                            </React.Fragment>
+                        ))}
+                    </Box>
                 </Box>
             </Box>
             <TextField
