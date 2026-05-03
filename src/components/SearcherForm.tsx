@@ -3,9 +3,7 @@ import { useEffect, useState } from "react";
 import {
     Box,
     Button,
-    Checkbox,
-    FormControlLabel,
-    FormGroup,
+    Collapse,
     MenuItem,
     TextField,
     Typography,
@@ -44,6 +42,20 @@ const NATURE_STAT_LABELS = ["Atk", "Def", "SpA", "SpD", "Spe"] as const;
 const NATURE_DISPLAY_TO_CANONICAL = [0, 1, 3, 4, 2] as const;
 const natureIdx = (rDisp: number, cDisp: number) =>
     NATURE_DISPLAY_TO_CANONICAL[rDisp] * 5 + NATURE_DISPLAY_TO_CANONICAL[cDisp];
+
+const POKEMON_TYPE_COLORS = [
+    "#C22E28", "#A98FF3", "#A33EA1", "#E2BF65",
+    "#B6A136", "#A6B91A", "#735797", "#B7B7CE",
+    "#EE8130", "#6390F0", "#7AC74C", "#F7D02C",
+    "#F95587", "#96D9D6", "#6F35FC", "#705746",
+] as const;
+
+const POKEMON_TYPE_EMOJIS = [
+    "👊", "🪶", "☠️", "⛰️",
+    "🪨", "🐛", "👻", "⚙️",
+    "🔥", "💧", "🌿", "⚡",
+    "🔮", "❄️", "🐉", "🌑",
+] as const;
 
 type GenderRatio =
     | { kind: "genderless" }
@@ -164,6 +176,7 @@ export default function CalibrationForm({
     const [resolvedEncounters, setResolvedEncounters] = useState<
         ResolvedEncounter[]
     >([]);
+    const [hpExpanded, setHpExpanded] = useState(false);
 
     const [rawRows, setRawRows] = useState<
         (ExtendedSearcherState | ExtendedWildSearcherState)[]
@@ -824,154 +837,222 @@ export default function CalibrationForm({
                 </Box>
             )}
             <Box sx={{ mt: 2, mb: 1, textAlign: "left" }}>
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                    Hidden Power Types
-                </Typography>
-                <Box sx={{ mb: 0.5 }}>
-                    <Button
-                        size="small"
-                        onClick={() =>
-                            setSearcherFormState((data) => ({
-                                ...data,
-                                hiddenPowerTypes: Array(
-                                    TYPES_EN.length
-                                ).fill(true),
-                            }))
-                        }
+                <Box
+                    onClick={() => setHpExpanded((v) => !v)}
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        px: 1.5,
+                        py: 1,
+                        bgcolor: "#212121",
+                        color: "#bdbdbd",
+                        borderRadius: 1,
+                        cursor: "pointer",
+                        userSelect: "none",
+                        "&:hover": { bgcolor: "#2a2a2a" },
+                    }}
+                >
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        Hidden Power Types
+                    </Typography>
+                    <Box
+                        sx={{
+                            transform: hpExpanded
+                                ? "rotate(180deg)"
+                                : "rotate(0deg)",
+                            transition: "transform 200ms",
+                            fontSize: "0.85rem",
+                        }}
                     >
-                        All
-                    </Button>
-                    <Button
-                        size="small"
-                        onClick={() =>
-                            setSearcherFormState((data) => ({
-                                ...data,
-                                hiddenPowerTypes: Array(
-                                    TYPES_EN.length
-                                ).fill(false),
-                            }))
-                        }
-                    >
-                        None
-                    </Button>
-                </Box>
-                {(
-                    [
-                        { label: "Physical", start: 0, end: 8 },
-                        { label: "Special", start: 8, end: 16 },
-                    ] as const
-                ).map(({ label, start, end }) => (
-                    <Box key={label} sx={{ mt: 1 }}>
-                        <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                                mb: 0.25,
-                            }}
-                        >
-                            <Typography
-                                variant="caption"
-                                sx={{ minWidth: 60, fontWeight: 600 }}
-                            >
-                                {label}
-                            </Typography>
-                            <Button
-                                size="small"
-                                onClick={() =>
-                                    setSearcherFormState((data) => {
-                                        const next =
-                                            data.hiddenPowerTypes.slice();
-                                        for (let i = start; i < end; i++)
-                                            next[i] = true;
-                                        return {
-                                            ...data,
-                                            hiddenPowerTypes: next,
-                                        };
-                                    })
-                                }
-                            >
-                                All
-                            </Button>
-                            <Button
-                                size="small"
-                                onClick={() =>
-                                    setSearcherFormState((data) => {
-                                        const next =
-                                            data.hiddenPowerTypes.slice();
-                                        for (let i = start; i < end; i++)
-                                            next[i] = false;
-                                        return {
-                                            ...data,
-                                            hiddenPowerTypes: next,
-                                        };
-                                    })
-                                }
-                            >
-                                None
-                            </Button>
-                        </Box>
-                        <FormGroup
-                            sx={{
-                                display: "grid",
-                                gridTemplateColumns: "repeat(4, 1fr)",
-                            }}
-                        >
-                            {TYPES_EN.slice(start, end).map((type, i) => {
-                                const idx = start + i;
-                                return (
-                                    <FormControlLabel
-                                        key={idx}
-                                        control={
-                                            <Checkbox
-                                                size="small"
-                                                checked={
-                                                    searcherFormState
-                                                        .hiddenPowerTypes[idx]
-                                                }
-                                                onChange={(event) => {
-                                                    const checked =
-                                                        event.target.checked;
-                                                    setSearcherFormState(
-                                                        (data) => {
-                                                            const next =
-                                                                data.hiddenPowerTypes.slice();
-                                                            next[idx] = checked;
-                                                            return {
-                                                                ...data,
-                                                                hiddenPowerTypes:
-                                                                    next,
-                                                            };
-                                                        }
-                                                    );
-                                                }}
-                                            />
-                                        }
-                                        label={type}
-                                    />
-                                );
-                            })}
-                        </FormGroup>
+                        ▼
                     </Box>
-                ))}
+                </Box>
+                <Collapse in={hpExpanded}>
+                    <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                        {(
+                            [
+                                {
+                                    label: "Physical",
+                                    emoji: "👊",
+                                    start: 0,
+                                    end: 8,
+                                    activeBg: "#c0392b",
+                                },
+                                {
+                                    label: "Special",
+                                    emoji: "✨",
+                                    start: 8,
+                                    end: 16,
+                                    activeBg: "#5e35b1",
+                                },
+                            ] as const
+                        ).map(({ label, emoji, start, end, activeBg }) => {
+                            const anySelected = TYPES_EN.slice(start, end).some(
+                                (_, i) =>
+                                    searcherFormState.hiddenPowerTypes[
+                                        start + i
+                                    ]
+                            );
+                            return (
+                                <Box key={label} sx={{ flex: 1, minWidth: 0 }}>
+                                    <Box
+                                        onClick={() =>
+                                            setSearcherFormState((data) => {
+                                                const next =
+                                                    data.hiddenPowerTypes.slice();
+                                                const newVal = !anySelected;
+                                                for (let i = start; i < end; i++)
+                                                    next[i] = newVal;
+                                                return {
+                                                    ...data,
+                                                    hiddenPowerTypes: next,
+                                                };
+                                            })
+                                        }
+                                        sx={{
+                                            px: 1,
+                                            py: 0.75,
+                                            mb: 0.5,
+                                            textAlign: "center",
+                                            bgcolor: anySelected
+                                                ? activeBg
+                                                : "#212121",
+                                            color: anySelected
+                                                ? "#ffffff"
+                                                : "#9e9e9e",
+                                            fontWeight: 600,
+                                            fontSize: "0.85rem",
+                                            borderRadius: 1,
+                                            cursor: "pointer",
+                                            userSelect: "none",
+                                            transition:
+                                                "background-color 100ms",
+                                        }}
+                                    >
+                                        <Box
+                                            component="span"
+                                            sx={{ mr: 0.75 }}
+                                        >
+                                            {emoji}
+                                        </Box>
+                                        {label}
+                                    </Box>
+                                    <Box
+                                        sx={{
+                                            display: "grid",
+                                            gridTemplateColumns:
+                                                "repeat(2, 1fr)",
+                                            gap: 0.5,
+                                        }}
+                                    >
+                                        {TYPES_EN.slice(start, end).map(
+                                            (type, i) => {
+                                                const idx = start + i;
+                                                const selected =
+                                                    searcherFormState
+                                                        .hiddenPowerTypes[idx];
+                                                const color =
+                                                    POKEMON_TYPE_COLORS[idx];
+                                                const tEmoji =
+                                                    POKEMON_TYPE_EMOJIS[idx];
+                                                return (
+                                                    <Box
+                                                        key={idx}
+                                                        onClick={() =>
+                                                            setSearcherFormState(
+                                                                (data) => {
+                                                                    const next =
+                                                                        data.hiddenPowerTypes.slice();
+                                                                    next[idx] =
+                                                                        !next[
+                                                                            idx
+                                                                        ];
+                                                                    return {
+                                                                        ...data,
+                                                                        hiddenPowerTypes:
+                                                                            next,
+                                                                    };
+                                                                }
+                                                            )
+                                                        }
+                                                        sx={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            gap: 0.5,
+                                                            px: 0.75,
+                                                            py: 0.6,
+                                                            bgcolor: selected
+                                                                ? color
+                                                                : "#212121",
+                                                            color: selected
+                                                                ? "#ffffff"
+                                                                : "#9e9e9e",
+                                                            fontWeight: selected
+                                                                ? 600
+                                                                : 400,
+                                                            fontSize: {
+                                                                xs: "0.65rem",
+                                                                sm: "0.75rem",
+                                                            },
+                                                            borderRadius: 0.5,
+                                                            cursor: "pointer",
+                                                            userSelect: "none",
+                                                            whiteSpace:
+                                                                "nowrap",
+                                                            transition:
+                                                                "background-color 100ms",
+                                                        }}
+                                                    >
+                                                        <Box
+                                                            component="span"
+                                                            sx={{
+                                                                fontSize:
+                                                                    "0.85rem",
+                                                            }}
+                                                        >
+                                                            {tEmoji}
+                                                        </Box>
+                                                        {type}
+                                                    </Box>
+                                                );
+                                            }
+                                        )}
+                                    </Box>
+                                </Box>
+                            );
+                        })}
+                    </Box>
+                    <Box
+                        sx={{
+                            mt: 1.5,
+                            borderLeft: "3px solid #F7D02C",
+                            pl: 1.25,
+                        }}
+                    >
+                        <NumericalInput
+                            label="Min Hidden Power BP (0–70, 0 disables)"
+                            name="minHiddenPowerStrength"
+                            margin="dense"
+                            minimumValue={0}
+                            maximumValue={70}
+                            isHex={false}
+                            value={
+                                searcherFormState.minHiddenPowerStrengthString
+                            }
+                            onChange={(_event, value) => {
+                                setSearcherFormState((data) => ({
+                                    ...data,
+                                    minHiddenPowerStrengthString: value.value,
+                                }));
+                            }}
+                            allowEmpty
+                            placeholder="0"
+                        />
+                    </Box>
+                </Collapse>
             </Box>
-            <NumericalInput
-                label="Min Hidden Power BP (0–70, 0 disables)"
-                name="minHiddenPowerStrength"
-                margin="normal"
-                minimumValue={0}
-                maximumValue={70}
-                isHex={false}
-                value={searcherFormState.minHiddenPowerStrengthString}
-                onChange={(_event, value) => {
-                    setSearcherFormState((data) => ({
-                        ...data,
-                        minHiddenPowerStrengthString: value.value,
-                    }));
-                }}
-                allowEmpty
-                placeholder="0"
-            />
             <IvEntry
                 onChange={(_event, value) => {
                     setIvRangesAreValid(value.isValid);
