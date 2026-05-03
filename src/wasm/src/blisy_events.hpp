@@ -9,6 +9,7 @@
 class BlisyEvents {
 public:
     static constexpr int CATEGORY = 8;
+    static constexpr int COUNT = 6;
 
     static const emscripten::typed_array<EnumeratedStaticTemplate3> get_template_info()
     {

@@ -5,6 +5,11 @@
 
 EMSCRIPTEN_BINDINGS(pokefinder_glue)
 {
+    emscripten::value_immutable_unconstructable<EncounterRef>("EncounterRef")
+        .field("isStatic", &EncounterRef::isStatic)
+        .field("category", &EncounterRef::category)
+        .field("index", &EncounterRef::index);
+
     emscripten::value_immutable_unconstructable<EnumeratedStaticTemplate3>("EnumeratedStaticTemplate3")
         .field("index", &EnumeratedStaticTemplate3::index)
         .field("version", emscripten::cast_member<u8>(&EnumeratedStaticTemplate3::version))

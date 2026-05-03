@@ -5,11 +5,18 @@
 #include <Core/Gen3/Encounters3.hpp>
 #include <Core/Gen3/Profile3.hpp>
 #include <Core/Gen3/StaticTemplate3.hpp>
+#include <Core/Global.hpp>
 #include <Core/Parents/Filters/StateFilter.hpp>
 #include <Core/Parents/States/State.hpp>
 #include <Core/Parents/States/WildState.hpp>
 #include <emscripten.h>
 #include <emscripten/bind.h>
+
+struct EncounterRef {
+    u8 isStatic;
+    u8 category;
+    int index;
+};
 
 inline EncounterArea3 get_encounter_area(
     Encounter encounter_category,
