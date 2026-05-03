@@ -25,17 +25,17 @@ function TenLinesPages() {
     const pages = [
         <InitialSeedForm
             key={0}
-            sx={{ maxWidth: 1100, minWidth: 1100, width: 1100 }}
+            sx={{ maxWidth: 1100, width: "100%", mx: "auto" }}
             hidden={currentPage != 0}
         />,
         <CalibrationForm
             key={1}
-            sx={{ maxWidth: 1100, minWidth: 1100, width: 1100 }}
+            sx={{ maxWidth: 1100, width: "100%", mx: "auto" }}
             hidden={currentPage != 1}
         />,
         <SearcherForm
             key={2}
-            sx={{ maxWidth: 1100, minWidth: 1100, width: 1100 }}
+            sx={{ maxWidth: 1100, width: "100%", mx: "auto" }}
             hidden={currentPage != 2}
         />,
         bingoActive && <BingoPage key={3} hidden={currentPage != 3} />,

@@ -393,7 +393,7 @@ export default function CalibrationForm({
     }
 
     return (
-        <Box component="form" onSubmit={handleSubmit} sx={{ sx }}>
+        <Box component="form" onSubmit={handleSubmit} sx={sx}>
             <TextField
                 label="Game"
                 margin="normal"

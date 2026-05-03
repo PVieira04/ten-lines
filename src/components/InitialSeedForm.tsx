@@ -122,7 +122,7 @@ export default function TenLinesForm({
     }
 
     return (
-        <Box component="form" onSubmit={handleSubmit} sx={{ sx }}>
+        <Box component="form" onSubmit={handleSubmit} sx={sx}>
             <NumericalInput
                 label="Target Seed"
                 name="targetSeed"

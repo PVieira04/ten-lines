@@ -41,7 +41,10 @@ import SpeciesFirstEncounterSelector, {
     type ResolvedEncounter,
 } from "./SpeciesFirstEncounterSelector";
 
-const NATURE_STAT_LABELS = ["Atk", "Def", "Spe", "SpA", "SpD"] as const;
+const NATURE_STAT_LABELS = ["Atk", "Def", "SpA", "SpD", "Spe"] as const;
+const NATURE_DISPLAY_TO_CANONICAL = [0, 1, 3, 4, 2] as const;
+const natureIdx = (rDisp: number, cDisp: number) =>
+    NATURE_DISPLAY_TO_CANONICAL[rDisp] * 5 + NATURE_DISPLAY_TO_CANONICAL[cDisp];
 
 export interface SearcherFormState {
     shininess: number;
@@ -336,7 +339,7 @@ export default function CalibrationForm({
     }
 
     return (
-        <Box component="form" onSubmit={handleSubmit} sx={{ sx }}>
+        <Box component="form" onSubmit={handleSubmit} sx={sx}>
             <TextField
                 label="Game"
                 margin="normal"
@@ -568,11 +571,12 @@ export default function CalibrationForm({
                                 onClick={() =>
                                     setSearcherFormState((data) => {
                                         const allOn = NATURE_STAT_LABELS.every(
-                                            (_, r) => data.natures[r * 5 + c]
+                                            (_, r) =>
+                                                data.natures[natureIdx(r, c)]
                                         );
                                         const next = data.natures.slice();
                                         for (let r = 0; r < 5; r++)
-                                            next[r * 5 + c] = !allOn;
+                                            next[natureIdx(r, c)] = !allOn;
                                         return { ...data, natures: next };
                                     })
                                 }
@@ -597,13 +601,13 @@ export default function CalibrationForm({
                                 <Box
                                     onClick={() =>
                                         setSearcherFormState((data) => {
-                                            const start = r * 5;
-                                            const allOn = data.natures
-                                                .slice(start, start + 5)
-                                                .every(Boolean);
+                                            const allOn = NATURE_STAT_LABELS.every(
+                                                (_, c) =>
+                                                    data.natures[natureIdx(r, c)]
+                                            );
                                             const next = data.natures.slice();
                                             for (let c = 0; c < 5; c++)
-                                                next[start + c] = !allOn;
+                                                next[natureIdx(r, c)] = !allOn;
                                             return { ...data, natures: next };
                                         })
                                     }
@@ -623,7 +627,7 @@ export default function CalibrationForm({
                                     ↑ {rowStat}
                                 </Box>
                                 {NATURE_STAT_LABELS.map((_, c) => {
-                                    const idx = r * 5 + c;
+                                    const idx = natureIdx(r, c);
                                     const selected =
                                         searcherFormState.natures[idx];
                                     return (
