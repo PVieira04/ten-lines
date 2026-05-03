@@ -45,7 +45,7 @@ export interface SearcherFormState {
     natures: boolean[];
     gender: number;
     ability: number;
-    hiddenPower: number;
+    hiddenPowerTypes: boolean[];
     minHiddenPowerStrengthString: string;
     ivRangeStrings: [string, string][];
     staticCategory: number;
@@ -100,7 +100,7 @@ export default function CalibrationForm({
             natures: Array(NATURES_EN.length).fill(true),
             gender: 255,
             ability: -1,
-            hiddenPower: -1,
+            hiddenPowerTypes: Array(TYPES_EN.length).fill(true),
             minHiddenPowerStrengthString: "30",
             ivRangeStrings: [
                 ["0", "31"],
@@ -186,7 +186,7 @@ export default function CalibrationForm({
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (isNotSubmittable) return;
-        const { natures } = searcherFormState;
+        const { natures, hiddenPowerTypes, ability } = searcherFormState;
         const minHpParsed = parseInt(
             searcherFormState.minHiddenPowerStrengthString,
             10
@@ -195,11 +195,11 @@ export default function CalibrationForm({
             Number.isFinite(minHpParsed) && minHpParsed >= 0 && minHpParsed <= 70
                 ? minHpParsed
                 : 0;
-        const { ability } = searcherFormState;
         const filterRow = (
             row: ExtendedSearcherState | ExtendedWildSearcherState
         ) =>
             natures[row.nature] &&
+            hiddenPowerTypes[row.hiddenPower] &&
             row.hiddenPowerStrength >= minHiddenPowerStrength &&
             (ability === -1 || row.ability === ability);
 
@@ -263,7 +263,7 @@ export default function CalibrationForm({
                     searcherFormState.shininess,
                     -1,
                     searcherFormState.gender,
-                    searcherFormState.hiddenPower,
+                    -1,
                     ivRanges,
                     proxy(appendBatch),
                     proxy(onDone)
@@ -281,7 +281,7 @@ export default function CalibrationForm({
                     searcherFormState.shininess,
                     -1,
                     searcherFormState.gender,
-                    searcherFormState.hiddenPower,
+                    -1,
                     ivRanges,
                     proxy(appendBatch),
                     proxy(onDone)
@@ -598,27 +598,138 @@ export default function CalibrationForm({
                     </MenuItem>
                 ))}
             </TextField>
-            <TextField
-                label="Hidden Power"
-                margin="normal"
-                style={{ textAlign: "left" }}
-                onChange={(event) => {
-                    setSearcherFormState((data) => ({
-                        ...data,
-                        hiddenPower: parseInt(event.target.value),
-                    }));
-                }}
-                value={searcherFormState.hiddenPower}
-                select
-                fullWidth
-            >
-                <MenuItem value="-1">Any</MenuItem>
-                {TYPES_EN.map((type, index) => (
-                    <MenuItem key={index} value={index}>
-                        {type}
-                    </MenuItem>
+            <Box sx={{ mt: 2, mb: 1, textAlign: "left" }}>
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                    Hidden Power Types
+                </Typography>
+                <Box sx={{ mb: 0.5 }}>
+                    <Button
+                        size="small"
+                        onClick={() =>
+                            setSearcherFormState((data) => ({
+                                ...data,
+                                hiddenPowerTypes: Array(
+                                    TYPES_EN.length
+                                ).fill(true),
+                            }))
+                        }
+                    >
+                        All
+                    </Button>
+                    <Button
+                        size="small"
+                        onClick={() =>
+                            setSearcherFormState((data) => ({
+                                ...data,
+                                hiddenPowerTypes: Array(
+                                    TYPES_EN.length
+                                ).fill(false),
+                            }))
+                        }
+                    >
+                        None
+                    </Button>
+                </Box>
+                {(
+                    [
+                        { label: "Physical", start: 0, end: 8 },
+                        { label: "Special", start: 8, end: 16 },
+                    ] as const
+                ).map(({ label, start, end }) => (
+                    <Box key={label} sx={{ mt: 1 }}>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                                mb: 0.25,
+                            }}
+                        >
+                            <Typography
+                                variant="caption"
+                                sx={{ minWidth: 60, fontWeight: 600 }}
+                            >
+                                {label}
+                            </Typography>
+                            <Button
+                                size="small"
+                                onClick={() =>
+                                    setSearcherFormState((data) => {
+                                        const next =
+                                            data.hiddenPowerTypes.slice();
+                                        for (let i = start; i < end; i++)
+                                            next[i] = true;
+                                        return {
+                                            ...data,
+                                            hiddenPowerTypes: next,
+                                        };
+                                    })
+                                }
+                            >
+                                All
+                            </Button>
+                            <Button
+                                size="small"
+                                onClick={() =>
+                                    setSearcherFormState((data) => {
+                                        const next =
+                                            data.hiddenPowerTypes.slice();
+                                        for (let i = start; i < end; i++)
+                                            next[i] = false;
+                                        return {
+                                            ...data,
+                                            hiddenPowerTypes: next,
+                                        };
+                                    })
+                                }
+                            >
+                                None
+                            </Button>
+                        </Box>
+                        <FormGroup
+                            sx={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(4, 1fr)",
+                            }}
+                        >
+                            {TYPES_EN.slice(start, end).map((type, i) => {
+                                const idx = start + i;
+                                return (
+                                    <FormControlLabel
+                                        key={idx}
+                                        control={
+                                            <Checkbox
+                                                size="small"
+                                                checked={
+                                                    searcherFormState
+                                                        .hiddenPowerTypes[idx]
+                                                }
+                                                onChange={(event) => {
+                                                    const checked =
+                                                        event.target.checked;
+                                                    setSearcherFormState(
+                                                        (data) => {
+                                                            const next =
+                                                                data.hiddenPowerTypes.slice();
+                                                            next[idx] = checked;
+                                                            return {
+                                                                ...data,
+                                                                hiddenPowerTypes:
+                                                                    next,
+                                                            };
+                                                        }
+                                                    );
+                                                }}
+                                            />
+                                        }
+                                        label={type}
+                                    />
+                                );
+                            })}
+                        </FormGroup>
+                    </Box>
                 ))}
-            </TextField>
+            </Box>
             <NumericalInput
                 label="Min Hidden Power BP (0–70, 0 disables)"
                 name="minHiddenPowerStrength"
