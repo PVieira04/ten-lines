@@ -9,6 +9,7 @@ function NumericalInput({
     isHex,
     onChange,
     value,
+    allowEmpty = false,
     ...props
 }: {
     label: string;
@@ -24,11 +25,13 @@ function NumericalInput({
     ) => void;
     value: string;
     isHex?: boolean;
+    allowEmpty?: boolean;
     [key: string]: any;
 }) {
     const prefix = isHex ? "0x" : "";
 
     const getError = (value: string) => {
+        if (value === "" && allowEmpty) return "";
         const reg = new RegExp(isHex ? "[^0-9a-fA-F]+" : "[^0-9]+");
         const intValue = parseInt(value, isHex ? 16 : 10);
         if (reg.test(value)) {
@@ -45,15 +48,15 @@ function NumericalInput({
 
     const error = useMemo(
         () => getError(value),
-        [value, isHex, minimumValue, maximumValue]
+        [value, isHex, minimumValue, maximumValue, allowEmpty]
     );
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         let { value, selectionStart, selectionEnd } = event.target;
-        while (value.charAt(0) === "0") {
+        while (value.length > 1 && value.charAt(0) === "0") {
             value = value.substring(1);
         }
-        if (value === "") {
+        if (value === "" && !allowEmpty) {
             value = "0";
         }
         onChange(event, { isValid: getError(value) === "", value });

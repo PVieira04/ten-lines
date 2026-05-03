@@ -95,8 +95,8 @@ export interface SearcherURLState {
 function useSearcherURLState() {
     const [searchParams, setSearchParams] = useSearchParams();
     const game = searchParams.get("game") || "r_painting";
-    const trainerID = searchParams.get("trainerID") || "0";
-    const secretID = searchParams.get("secretID") || "0";
+    const trainerID = searchParams.get("trainerID") ?? "";
+    const secretID = searchParams.get("secretID") ?? "";
     const gameConsole = fixGameConsole(game, searchParams.get("gameConsole") || "GBA");
     const species = searchParams.get("species") || "0";
     const setSearcherURLState = (state: Partial<SearcherURLState>) => {
@@ -134,7 +134,7 @@ export default function CalibrationForm({
             genderSelections: new Set<number>([0, 1]),
             ability: -1,
             hiddenPowerTypes: Array(TYPES_EN.length).fill(true),
-            minHiddenPowerStrengthString: "30",
+            minHiddenPowerStrengthString: "",
             ivRangeStrings: [
                 ["0", "31"],
                 ["0", "31"],
@@ -278,6 +278,11 @@ export default function CalibrationForm({
             row.hiddenPowerStrength >= minHiddenPowerStrength &&
             (ability === -1 || row.ability === ability);
 
+        const tid = parseInt(trainerID, 10);
+        const sid = parseInt(secretID, 10);
+        const tidNum = Number.isFinite(tid) ? tid : 0;
+        const sidNum = Number.isFinite(sid) ? sid : 0;
+
         const submit = async () => {
             const tenLines = await fetchTenLines();
             setRawRows([]);
@@ -316,8 +321,8 @@ export default function CalibrationForm({
                     for (const method of staticMethods) {
                         await tenLines.search_seeds_static(
                             SEED_IDENTIFIER_TO_GAME[game],
-                            parseInt(trainerID),
-                            parseInt(secretID),
+                            tidNum,
+                            sidNum,
                             enc.ref.category,
                             enc.staticPokemon ?? enc.ref.index,
                             method,
@@ -334,8 +339,8 @@ export default function CalibrationForm({
                     for (const method of wildMethods) {
                         await tenLines.search_seeds_wild(
                             SEED_IDENTIFIER_TO_GAME[game],
-                            parseInt(trainerID),
-                            parseInt(secretID),
+                            tidNum,
+                            sidNum,
                             enc.ref.category,
                             enc.wildLocationId ?? enc.ref.index,
                             enc.wildSpeciesForm ?? searcherFormState.species,
@@ -468,6 +473,8 @@ export default function CalibrationForm({
                     maximumValue={65535}
                     isHex={false}
                     name="trainerID"
+                    allowEmpty
+                    placeholder="0"
                 />
                 <span
                     style={{
@@ -489,6 +496,8 @@ export default function CalibrationForm({
                     maximumValue={65535}
                     isHex={false}
                     name="secretID"
+                    allowEmpty
+                    placeholder="0"
                 />
             </Box>
             <SpeciesFirstEncounterSelector
@@ -960,6 +969,8 @@ export default function CalibrationForm({
                         minHiddenPowerStrengthString: value.value,
                     }));
                 }}
+                allowEmpty
+                placeholder="0"
             />
             <IvEntry
                 onChange={(_event, value) => {
