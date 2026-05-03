@@ -27,7 +27,6 @@ import {
 import React from "react";
 import {
     ABILITIES_EN,
-    GENDERS_EN,
     NATURES_EN,
     TYPES_EN,
 } from "../tenLines/resources";
@@ -46,10 +45,35 @@ const NATURE_DISPLAY_TO_CANONICAL = [0, 1, 3, 4, 2] as const;
 const natureIdx = (rDisp: number, cDisp: number) =>
     NATURE_DISPLAY_TO_CANONICAL[rDisp] * 5 + NATURE_DISPLAY_TO_CANONICAL[cDisp];
 
+type GenderRatio =
+    | { kind: "genderless" }
+    | { kind: "ratio"; malePct: number; femalePct: number };
+
+function genderRatioFromThreshold(threshold: number | null): GenderRatio | null {
+    if (threshold === null) return null;
+    if (threshold === 255) return { kind: "genderless" };
+    switch (threshold) {
+        case 0:
+            return { kind: "ratio", malePct: 100, femalePct: 0 };
+        case 31:
+            return { kind: "ratio", malePct: 87.5, femalePct: 12.5 };
+        case 63:
+            return { kind: "ratio", malePct: 75, femalePct: 25 };
+        case 127:
+            return { kind: "ratio", malePct: 50, femalePct: 50 };
+        case 191:
+            return { kind: "ratio", malePct: 25, femalePct: 75 };
+        case 254:
+            return { kind: "ratio", malePct: 0, femalePct: 100 };
+        default:
+            return null;
+    }
+}
+
 export interface SearcherFormState {
     shininess: number;
     natures: boolean[];
-    gender: number;
+    genderSelections: Set<number>;
     ability: number;
     hiddenPowerTypes: boolean[];
     minHiddenPowerStrengthString: string;
@@ -107,7 +131,7 @@ export default function CalibrationForm({
         useState<SearcherFormState>({
             shininess: 255,
             natures: Array(NATURES_EN.length).fill(true),
-            gender: 255,
+            genderSelections: new Set<number>([0, 1]),
             ability: -1,
             hiddenPowerTypes: Array(TYPES_EN.length).fill(true),
             minHiddenPowerStrengthString: "30",
@@ -148,39 +172,50 @@ export default function CalibrationForm({
     const [searching, setSearching] = useState(false);
     const [enriching, setEnriching] = useState(false);
     const [abilityIds, setAbilityIds] = useState<[number, number] | null>(null);
+    const [genderThreshold, setGenderThreshold] = useState<number | null>(null);
 
     useEffect(() => {
         if (!searcherFormState.species) {
             setAbilityIds(null);
+            setGenderThreshold(null);
             return;
         }
         let cancelled = false;
         const load = async () => {
             const lib = await fetchTenLines();
             try {
-                const result = await lib.get_pokemon_abilities(
+                const abilities = await lib.get_pokemon_abilities(
+                    searcherFormState.species,
+                    0
+                );
+                const threshold = await lib.get_pokemon_gender_threshold(
                     searcherFormState.species,
                     0
                 );
                 if (!cancelled) {
-                    setAbilityIds([result[0], result[1]]);
-                    if (result[0] === result[1]) {
+                    setAbilityIds([abilities[0], abilities[1]]);
+                    setGenderThreshold(threshold);
+                    if (abilities[0] === abilities[1]) {
                         setSearcherFormState((data) => ({ ...data, ability: -1 }));
                     }
                 }
             } catch {
                 if (!cancelled) {
                     setAbilityIds(null);
+                    setGenderThreshold(null);
                     setSearcherFormState((data) => ({ ...data, ability: -1 }));
                 }
             }
         };
         setAbilityIds(null);
+        setGenderThreshold(null);
         load();
         return () => {
             cancelled = true;
         };
     }, [searcherFormState.species]);
+
+    const genderRatio = genderRatioFromThreshold(genderThreshold);
 
     const [ivRangesAreValid, setIvRangesAreValid] = useState(true);
     const ivRanges = ivRangesAreValid
@@ -200,12 +235,27 @@ export default function CalibrationForm({
         selectedEncounters.length > 0 &&
         searcherFormState.methodSelections.size > 0;
 
+    const genderForBackend = (() => {
+        if (!genderRatio || genderRatio.kind === "genderless") return 255;
+        const { malePct, femalePct } = genderRatio;
+        if (malePct === 100) return 255;
+        if (femalePct === 100) return 255;
+        const sels = searcherFormState.genderSelections;
+        const wantMale = sels.has(0);
+        const wantFemale = sels.has(1);
+        if (wantMale && wantFemale) return 255;
+        if (wantMale) return 0;
+        if (wantFemale) return 1;
+        return -2;
+    })();
+
     const isNotSubmittable =
         searching ||
         !trainerIDIsValid ||
         !secretIDIsValid ||
         !ivRangesAreValid ||
-        !hasSelections;
+        !hasSelections ||
+        genderForBackend === -2;
 
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -273,7 +323,7 @@ export default function CalibrationForm({
                             method,
                             searcherFormState.shininess,
                             -1,
-                            searcherFormState.gender,
+                            genderForBackend,
                             -1,
                             ivRanges,
                             proxy(appendBatch),
@@ -293,7 +343,7 @@ export default function CalibrationForm({
                             searcherFormState.wildLead,
                             searcherFormState.shininess,
                             -1,
-                            searcherFormState.gender,
+                            genderForBackend,
                             -1,
                             ivRanges,
                             proxy(appendBatch),
@@ -677,27 +727,93 @@ export default function CalibrationForm({
                     </Box>
                 </Box>
             </Box>
-            <TextField
-                label="Gender"
-                margin="normal"
-                style={{ textAlign: "left" }}
-                onChange={(event) => {
-                    setSearcherFormState((data) => ({
-                        ...data,
-                        gender: parseInt(event.target.value),
-                    }));
-                }}
-                value={searcherFormState.gender}
-                select
-                fullWidth
-            >
-                <MenuItem value="255">Any</MenuItem>
-                {GENDERS_EN.slice(0, 2).map((gender, index) => (
-                    <MenuItem key={index} value={index}>
-                        {gender}
-                    </MenuItem>
-                ))}
-            </TextField>
+            {genderRatio && (
+                <Box sx={{ mt: 2, mb: 1, textAlign: "left" }}>
+                    <Typography variant="body2" sx={{ mb: 0.5 }}>
+                        Gender
+                    </Typography>
+                    {genderRatio.kind === "genderless" ? (
+                        <Typography
+                            variant="caption"
+                            sx={{ color: "text.secondary" }}
+                        >
+                            Genderless
+                        </Typography>
+                    ) : (
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                            {[
+                                {
+                                    code: 0,
+                                    label: "♂",
+                                    pct: genderRatio.malePct,
+                                    selectedBg: "#1976d2",
+                                },
+                                {
+                                    code: 1,
+                                    label: "♀",
+                                    pct: genderRatio.femalePct,
+                                    selectedBg: "#c2185b",
+                                },
+                            ].map(({ code, label, pct, selectedBg }) => {
+                                const lockedToThis = pct === 100;
+                                const lockedAway = pct === 0;
+                                if (lockedAway) return null;
+                                const selected =
+                                    lockedToThis ||
+                                    searcherFormState.genderSelections.has(code);
+                                return (
+                                    <Box
+                                        key={code}
+                                        onClick={() => {
+                                            if (lockedToThis) return;
+                                            setSearcherFormState((data) => {
+                                                const next = new Set(
+                                                    data.genderSelections
+                                                );
+                                                if (next.has(code))
+                                                    next.delete(code);
+                                                else next.add(code);
+                                                return {
+                                                    ...data,
+                                                    genderSelections: next,
+                                                };
+                                            });
+                                        }}
+                                        sx={{
+                                            flex: 1,
+                                            px: 1.5,
+                                            py: 1,
+                                            borderRadius: 1,
+                                            textAlign: "center",
+                                            cursor: lockedToThis
+                                                ? "default"
+                                                : "pointer",
+                                            userSelect: "none",
+                                            bgcolor: selected
+                                                ? selectedBg
+                                                : "#212121",
+                                            color: selected
+                                                ? "#ffffff"
+                                                : "#9e9e9e",
+                                            fontWeight: selected ? 600 : 400,
+                                            transition:
+                                                "background-color 100ms",
+                                        }}
+                                    >
+                                        <Box
+                                            component="span"
+                                            sx={{ fontSize: "1.1rem", mr: 0.75 }}
+                                        >
+                                            {label}
+                                        </Box>
+                                        {pct % 1 === 0 ? pct : pct.toFixed(1)}%
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+                    )}
+                </Box>
+            )}
             <Box sx={{ mt: 2, mb: 1, textAlign: "left" }}>
                 <Typography variant="body2" sx={{ mb: 0.5 }}>
                     Hidden Power Types

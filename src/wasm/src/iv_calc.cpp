@@ -88,12 +88,19 @@ emscripten::typed_array<u16> get_pokemon_abilities(u16 species, u8 form)
     return result;
 }
 
+u8 get_pokemon_gender_threshold(u16 species, u8 form)
+{
+    const PersonalInfo* info = PersonalLoader::getPersonal(Game::Gen3, species, form);
+    return info->getGender();
+}
+
 EMSCRIPTEN_BINDINGS(iv_calc)
 {
     emscripten::smart_function("calc_ivs_static", &calc_ivs_static);
     emscripten::smart_function("calc_ivs_generic", &calc_ivs_generic);
     emscripten::smart_function("get_static_template_abilities", &get_static_template_abilities);
     emscripten::smart_function("get_pokemon_abilities", &get_pokemon_abilities);
+    emscripten::smart_function("get_pokemon_gender_threshold", &get_pokemon_gender_threshold);
     emscripten::value_object<IVRange>("IVRange")
         .field("min", &IVRange::min)
         .field("max", &IVRange::max);
