@@ -12,7 +12,6 @@ import {
 } from "@mui/material";
 
 import fetchTenLines, {
-    COMBINED_WILD_METHOD,
     computeEarliestReach,
     fetchSeedData,
     fixGameConsole,
@@ -327,9 +326,7 @@ export default function CalibrationForm({
     };
 
     const isFRLG = game.startsWith("fr") || game.startsWith("lg");
-    const isMultiMethod =
-        searcherFormState.methodSelections.has(COMBINED_WILD_METHOD) ||
-        searcherFormState.methodSelections.size > 1;
+    const isMultiMethod = searcherFormState.methodSelections.size > 1;
     const isStaticOnly =
         selectedEncounters.length > 0 &&
         selectedEncounters.every((e) => isStaticEncounter(e.ref));

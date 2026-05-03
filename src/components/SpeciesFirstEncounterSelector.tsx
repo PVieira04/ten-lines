@@ -12,7 +12,6 @@ import {
 } from "@mui/material";
 
 import fetchTenLines, {
-    COMBINED_WILD_METHOD,
     Game,
     STATIC_1,
     STATIC_4,
@@ -50,7 +49,7 @@ const STATIC_CATEGORY_LABELS: Record<number, string> = {
     8: "Blisy's E-Reader Events",
 };
 
-const WILD_METHODS = [WILD_1, WILD_2, WILD_4, COMBINED_WILD_METHOD];
+const WILD_METHODS = [WILD_1, WILD_2, WILD_4];
 const STATIC_METHODS = [STATIC_1, STATIC_4];
 
 export type EncounterKey = string;
@@ -241,7 +240,7 @@ export default function SpeciesFirstEncounterSelector({
             hasWild &&
             !WILD_METHODS.some((m) => next.has(m))
         ) {
-            next.add(COMBINED_WILD_METHOD);
+            next.add(WILD_1);
             changed = true;
         }
         if (
