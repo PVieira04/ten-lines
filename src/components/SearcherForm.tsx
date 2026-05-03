@@ -17,8 +17,7 @@ import fetchTenLines, {
     fetchSeedData,
     fixGameConsole,
     SEED_IDENTIFIER_TO_GAME,
-    STATIC_2,
-    STATIC_4,
+    STATIC_1,
 } from "../tenLines";
 import NumericalInput from "./NumericalInput";
 import { proxy } from "comlink";
@@ -30,15 +29,18 @@ import React from "react";
 import {
     ABILITIES_EN,
     GENDERS_EN,
-    METHODS_EN,
     NATURES_EN,
     TYPES_EN,
 } from "../tenLines/resources";
 import IvEntry from "./IvEntry";
-import StaticEncounterSelector from "./StaticEncounterSelector";
 import { useSearchParams } from "react-router-dom";
-import WildEncounterSelector from "./WildEncounterSelector";
 import SearcherTable, { type EnrichedSearcherRow } from "./SearcherTable";
+import SpeciesFirstEncounterSelector, {
+    encounterKey,
+    isStaticEncounter,
+    type EncounterKey,
+    type ResolvedEncounter,
+} from "./SpeciesFirstEncounterSelector";
 
 const NATURE_STAT_LABELS = ["Atk", "Def", "Spe", "SpA", "SpD"] as const;
 
@@ -50,13 +52,10 @@ export interface SearcherFormState {
     hiddenPowerTypes: boolean[];
     minHiddenPowerStrengthString: string;
     ivRangeStrings: [string, string][];
-    staticCategory: number;
-    staticPokemon: number;
-    wildCategory: number;
-    wildLocation: number;
-    wildPokemon: number;
+    species: number;
+    selectedKeys: Set<EncounterKey>;
+    methodSelections: Set<number>;
     wildLead: number;
-    method: number;
 }
 
 export interface SearcherURLState {
@@ -64,6 +63,7 @@ export interface SearcherURLState {
     trainerID: string;
     secretID: string;
     gameConsole: string;
+    species: string;
 }
 
 function useSearcherURLState() {
@@ -72,6 +72,7 @@ function useSearcherURLState() {
     const trainerID = searchParams.get("trainerID") || "0";
     const secretID = searchParams.get("secretID") || "0";
     const gameConsole = fixGameConsole(game, searchParams.get("gameConsole") || "GBA");
+    const species = searchParams.get("species") || "0";
     const setSearcherURLState = (state: Partial<SearcherURLState>) => {
         setSearchParams((prev) => {
             for (const [key, value] of Object.entries(state)) {
@@ -85,6 +86,7 @@ function useSearcherURLState() {
         trainerID,
         secretID,
         gameConsole,
+        species,
         setSearcherURLState,
     };
 }
@@ -96,6 +98,9 @@ export default function CalibrationForm({
     sx?: any;
     hidden?: boolean;
 }) {
+    const { game, trainerID, secretID, gameConsole, species, setSearcherURLState } =
+        useSearcherURLState();
+
     const [searcherFormState, setSearcherFormState] =
         useState<SearcherFormState>({
             shininess: 255,
@@ -112,16 +117,27 @@ export default function CalibrationForm({
                 ["0", "31"],
                 ["0", "31"],
             ],
-            staticCategory: 0,
-            staticPokemon: 0,
-            wildCategory: 0,
-            wildLocation: 0,
-            wildPokemon: 0,
+            species: parseInt(species, 10) || 0,
+            selectedKeys: new Set<EncounterKey>(),
+            methodSelections: new Set<number>(),
             wildLead: 255,
-            method: 1,
         });
-    const { game, trainerID, secretID, gameConsole, setSearcherURLState } =
-        useSearcherURLState();
+
+    const speciesNum = parseInt(species, 10) || 0;
+    useEffect(() => {
+        if (searcherFormState.species !== speciesNum) {
+            setSearcherFormState((d) => ({
+                ...d,
+                species: speciesNum,
+                selectedKeys: new Set<EncounterKey>(),
+                methodSelections: new Set<number>(),
+            }));
+        }
+    }, [speciesNum, searcherFormState.species]);
+
+    const [resolvedEncounters, setResolvedEncounters] = useState<
+        ResolvedEncounter[]
+    >([]);
 
     const [rawRows, setRawRows] = useState<
         (ExtendedSearcherState | ExtendedWildSearcherState)[]
@@ -132,20 +148,18 @@ export default function CalibrationForm({
     const [abilityIds, setAbilityIds] = useState<[number, number] | null>(null);
 
     useEffect(() => {
+        if (!searcherFormState.species) {
+            setAbilityIds(null);
+            return;
+        }
         let cancelled = false;
-        const isStaticLocal = searcherFormState.method <= STATIC_4;
         const load = async () => {
             const lib = await fetchTenLines();
             try {
-                const result = isStaticLocal
-                    ? await lib.get_static_template_abilities(
-                          searcherFormState.staticCategory,
-                          searcherFormState.staticPokemon
-                      )
-                    : await lib.get_pokemon_abilities(
-                          searcherFormState.wildPokemon & 0x7ff,
-                          searcherFormState.wildPokemon >> 11
-                      );
+                const result = await lib.get_pokemon_abilities(
+                    searcherFormState.species,
+                    0
+                );
                 if (!cancelled) {
                     setAbilityIds([result[0], result[1]]);
                     if (result[0] === result[1]) {
@@ -164,12 +178,7 @@ export default function CalibrationForm({
         return () => {
             cancelled = true;
         };
-    }, [
-        searcherFormState.method,
-        searcherFormState.staticCategory,
-        searcherFormState.staticPokemon,
-        searcherFormState.wildPokemon,
-    ]);
+    }, [searcherFormState.species]);
 
     const [ivRangesAreValid, setIvRangesAreValid] = useState(true);
     const ivRanges = ivRangesAreValid
@@ -182,13 +191,25 @@ export default function CalibrationForm({
     const [trainerIDIsValid, setTrainerIDIsValid] = useState(true);
     const [secretIDIsValid, setSecretIDIsValid] = useState(true);
 
+    const selectedEncounters = resolvedEncounters.filter((r) =>
+        searcherFormState.selectedKeys.has(encounterKey(r.ref))
+    );
+    const hasSelections =
+        selectedEncounters.length > 0 &&
+        searcherFormState.methodSelections.size > 0;
+
     const isNotSubmittable =
-        searching || !trainerIDIsValid || !secretIDIsValid || !ivRangesAreValid;
+        searching ||
+        !trainerIDIsValid ||
+        !secretIDIsValid ||
+        !ivRangesAreValid ||
+        !hasSelections;
 
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (isNotSubmittable) return;
-        const { natures, hiddenPowerTypes, ability } = searcherFormState;
+        const { natures, hiddenPowerTypes, ability, methodSelections } =
+            searcherFormState;
         const minHpParsed = parseInt(
             searcherFormState.minHiddenPowerStrengthString,
             10
@@ -229,86 +250,89 @@ export default function CalibrationForm({
                 collectedRows.push(...filtered);
                 setRawRows((rows) => [...rows, ...filtered]);
             };
-            const onDone = async (stillSearching: boolean) => {
-                setSearching(stillSearching);
-                if (stillSearching) return;
-                setEnriching(true);
-                const seedData = isFRLG ? await fetchSeedData(game) : null;
-                const enriched = await Promise.all(
-                    collectedRows.map(async (row) => {
-                        const earliest = await computeEarliestReach(
-                            row.seed,
-                            game,
-                            gameConsole,
-                            seedData
-                        );
-                        return { ...row, earliest } as EnrichedSearcherRow;
-                    })
-                );
-                enriched.sort((a, b) => {
-                    const aMs = a.earliest?.totalMs ?? Number.POSITIVE_INFINITY;
-                    const bMs = b.earliest?.totalMs ?? Number.POSITIVE_INFINITY;
-                    return aMs - bMs;
-                });
-                setEnrichedRows(enriched);
-                setEnriching(false);
-            };
+            const noopOnDone = () => {};
 
-            if (isStatic) {
-                await tenLines.search_seeds_static(
-                    SEED_IDENTIFIER_TO_GAME[game],
-                    parseInt(trainerID),
-                    parseInt(secretID),
-                    searcherFormState.staticCategory,
-                    searcherFormState.staticPokemon,
-                    searcherFormState.method,
-                    searcherFormState.shininess,
-                    -1,
-                    searcherFormState.gender,
-                    -1,
-                    ivRanges,
-                    proxy(appendBatch),
-                    proxy(onDone)
-                );
-            } else {
-                await tenLines.search_seeds_wild(
-                    SEED_IDENTIFIER_TO_GAME[game],
-                    parseInt(trainerID),
-                    parseInt(secretID),
-                    searcherFormState.wildCategory,
-                    searcherFormState.wildLocation,
-                    searcherFormState.wildPokemon,
-                    searcherFormState.method,
-                    searcherFormState.wildLead,
-                    searcherFormState.shininess,
-                    -1,
-                    searcherFormState.gender,
-                    -1,
-                    ivRanges,
-                    proxy(appendBatch),
-                    proxy(onDone)
-                );
+            const wildMethods = Array.from(methodSelections).filter(
+                (m) => m >= STATIC_1 + 4
+            );
+            const staticMethods = Array.from(methodSelections).filter(
+                (m) => m <= STATIC_1 + 3
+            );
+
+            for (const enc of selectedEncounters) {
+                if (isStaticEncounter(enc.ref)) {
+                    for (const method of staticMethods) {
+                        await tenLines.search_seeds_static(
+                            SEED_IDENTIFIER_TO_GAME[game],
+                            parseInt(trainerID),
+                            parseInt(secretID),
+                            enc.ref.category,
+                            enc.staticPokemon ?? enc.ref.index,
+                            method,
+                            searcherFormState.shininess,
+                            -1,
+                            searcherFormState.gender,
+                            -1,
+                            ivRanges,
+                            proxy(appendBatch),
+                            proxy(noopOnDone)
+                        );
+                    }
+                } else {
+                    for (const method of wildMethods) {
+                        await tenLines.search_seeds_wild(
+                            SEED_IDENTIFIER_TO_GAME[game],
+                            parseInt(trainerID),
+                            parseInt(secretID),
+                            enc.ref.category,
+                            enc.wildLocationId ?? enc.ref.index,
+                            enc.wildSpeciesForm ?? searcherFormState.species,
+                            method,
+                            searcherFormState.wildLead,
+                            searcherFormState.shininess,
+                            -1,
+                            searcherFormState.gender,
+                            -1,
+                            ivRanges,
+                            proxy(appendBatch),
+                            proxy(noopOnDone)
+                        );
+                    }
+                }
             }
+
+            setSearching(false);
+            setEnriching(true);
+            const seedData = isFRLG ? await fetchSeedData(game) : null;
+            const enriched = await Promise.all(
+                collectedRows.map(async (row) => {
+                    const earliest = await computeEarliestReach(
+                        row.seed,
+                        game,
+                        gameConsole,
+                        seedData
+                    );
+                    return { ...row, earliest } as EnrichedSearcherRow;
+                })
+            );
+            enriched.sort((a, b) => {
+                const aMs = a.earliest?.totalMs ?? Number.POSITIVE_INFINITY;
+                const bMs = b.earliest?.totalMs ?? Number.POSITIVE_INFINITY;
+                return aMs - bMs;
+            });
+            setEnrichedRows(enriched);
+            setEnriching(false);
         };
         submit();
     };
 
-    const isStatic = searcherFormState.method <= STATIC_4;
     const isFRLG = game.startsWith("fr") || game.startsWith("lg");
-    const isFRLGE = isFRLG || game.startsWith("e_");
-
-    if (searcherFormState.staticCategory == 3 && !isFRLG) {
-        searcherFormState.staticCategory = 0;
-        setSearcherFormState(searcherFormState);
-    }
-    if (searcherFormState.staticCategory == 6 && !isFRLGE) {
-        searcherFormState.staticCategory = 0;
-        setSearcherFormState(searcherFormState);
-    }
-    if (searcherFormState.staticCategory == 8 && isFRLG) {
-        searcherFormState.staticCategory = 0;
-        setSearcherFormState(searcherFormState);
-    }
+    const isMultiMethod =
+        searcherFormState.methodSelections.has(COMBINED_WILD_METHOD) ||
+        searcherFormState.methodSelections.size > 1;
+    const isStaticOnly =
+        selectedEncounters.length > 0 &&
+        selectedEncounters.every((e) => isStaticEncounter(e.ref));
 
     if (hidden) {
         return null;
@@ -417,69 +441,33 @@ export default function CalibrationForm({
                     name="secretID"
                 />
             </Box>
-            <TextField
-                label="Method"
-                margin="normal"
-                style={{ textAlign: "left" }}
-                onChange={(event) => {
+            <SpeciesFirstEncounterSelector
+                game={SEED_IDENTIFIER_TO_GAME[game]}
+                species={searcherFormState.species}
+                selectedKeys={searcherFormState.selectedKeys}
+                methodSelections={searcherFormState.methodSelections}
+                wildLead={searcherFormState.wildLead}
+                onSpeciesChange={(s) => {
+                    setSearcherURLState({ species: String(s) });
+                }}
+                onSelectedKeysChange={(keys) =>
                     setSearcherFormState((data) => ({
                         ...data,
-                        method: parseInt(event.target.value),
-                    }));
-                }}
-                value={searcherFormState.method}
-                select
-                fullWidth
-            >
-                {Object.entries(METHODS_EN)
-                    .filter(([value, _name]) => parseInt(value) != STATIC_2)
-                    .map(([value, name], index) => (
-                        <MenuItem key={index} value={parseInt(value)}>
-                            {name}
-                        </MenuItem>
-                    ))}
-            </TextField>
-            {isStatic && (
-                <StaticEncounterSelector
-                    staticCategory={searcherFormState.staticCategory}
-                    staticPokemon={searcherFormState.staticPokemon}
-                    game={SEED_IDENTIFIER_TO_GAME[game]}
-                    onChange={(staticCategory, staticPokemon) => {
-                        setSearcherFormState((data) => ({
-                            ...data,
-                            staticCategory,
-                            staticPokemon,
-                        }));
-                    }}
-                />
-            )}
-            {!isStatic && (
-                <WildEncounterSelector
-                    wildCategory={searcherFormState.wildCategory}
-                    wildLocation={searcherFormState.wildLocation}
-                    wildPokemon={searcherFormState.wildPokemon}
-                    wildLead={searcherFormState.wildLead}
-                    game={SEED_IDENTIFIER_TO_GAME[game]}
-                    onChange={(
-                        wildCategory,
-                        wildLocation,
-                        wildPokemon,
-                        wildLead,
-                        _
-                    ) => {
-                        setSearcherFormState((data) => ({
-                            ...data,
-                            wildCategory,
-                            wildLocation,
-                            wildPokemon,
-                            wildLead,
-                        }));
-                    }}
-                    shouldFilterPokemon={true}
-                    allowAnyPokemon
-                    isSearcher
-                />
-            )}
+                        selectedKeys: keys,
+                    }))
+                }
+                onMethodSelectionsChange={(methods) =>
+                    setSearcherFormState((data) => ({
+                        ...data,
+                        methodSelections: methods,
+                    }))
+                }
+                onWildLeadChange={(lead) =>
+                    setSearcherFormState((data) => ({ ...data, wildLead: lead }))
+                }
+                onResolvedEncountersChange={setResolvedEncounters}
+            />
+
             {abilityIds && abilityIds[0] !== abilityIds[1] && (
                 <TextField
                     label="Ability"
@@ -870,12 +858,10 @@ export default function CalibrationForm({
                         ? enrichedRows
                         : (rawRows as EnrichedSearcherRow[])
                 }
-                isStatic={isStatic}
+                isStatic={isStaticOnly}
                 isFRLG={isFRLG}
                 gameConsole={gameConsole}
-                isMultiMethod={
-                    searcherFormState.method === COMBINED_WILD_METHOD
-                }
+                isMultiMethod={isMultiMethod}
             />
         </Box>
     );
