@@ -178,9 +178,7 @@ export default function CalibrationForm({
     >([]);
     const [hpExpanded, setHpExpanded] = useState(false);
 
-    const [rawRows, setRawRows] = useState<
-        (ExtendedSearcherState | ExtendedWildSearcherState)[]
-    >([]);
+    const [rawRows, setRawRows] = useState<EnrichedSearcherRow[]>([]);
     const [enrichedRows, setEnrichedRows] = useState<EnrichedSearcherRow[]>([]);
     const [searching, setSearching] = useState(false);
     const [enriching, setEnriching] = useState(false);
@@ -306,11 +304,8 @@ export default function CalibrationForm({
             setEnrichedRows([]);
             setSearching(true);
 
-            const collectedRows: (
-                | ExtendedSearcherState
-                | ExtendedWildSearcherState
-            )[] = [];
-            const appendBatch = (
+            const collectedRows: EnrichedSearcherRow[] = [];
+            const appendBatchWith = (label: string) => (
                 results: (
                     | ExtendedSearcherState
                     | ExtendedWildSearcherState
@@ -319,7 +314,9 @@ export default function CalibrationForm({
                 if (collectedRows.length > 1000 || results.length === 0) {
                     return;
                 }
-                const filtered = results.filter(filterRow);
+                const filtered: EnrichedSearcherRow[] = results
+                    .filter(filterRow)
+                    .map((r) => ({ ...r, encounterLabel: label }));
                 if (filtered.length === 0) return;
                 collectedRows.push(...filtered);
                 setRawRows((rows) => [...rows, ...filtered]);
@@ -334,6 +331,7 @@ export default function CalibrationForm({
             );
 
             for (const enc of selectedEncounters) {
+                const append = appendBatchWith(enc.label);
                 if (isStaticEncounter(enc.ref)) {
                     for (const method of staticMethods) {
                         await tenLines.search_seeds_static(
@@ -348,7 +346,7 @@ export default function CalibrationForm({
                             genderForBackend,
                             -1,
                             ivRanges,
-                            proxy(appendBatch),
+                            proxy(append),
                             proxy(noopOnDone)
                         );
                     }
@@ -368,7 +366,7 @@ export default function CalibrationForm({
                             genderForBackend,
                             -1,
                             ivRanges,
-                            proxy(appendBatch),
+                            proxy(append),
                             proxy(noopOnDone)
                         );
                     }
@@ -1082,15 +1080,12 @@ export default function CalibrationForm({
                         : "Submit"}
             </Button>
             <SearcherTable
-                rows={
-                    enrichedRows.length > 0
-                        ? enrichedRows
-                        : (rawRows as EnrichedSearcherRow[])
-                }
+                rows={enrichedRows.length > 0 ? enrichedRows : rawRows}
                 isStatic={isStaticOnly}
                 isFRLG={isFRLG}
                 gameConsole={gameConsole}
                 isMultiMethod={isMultiMethod}
+                isMultiEncounter={selectedEncounters.length > 1}
             />
         </Box>
     );

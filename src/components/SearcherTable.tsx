@@ -32,6 +32,7 @@ export type EnrichedSearcherRow = (
     | ExtendedWildSearcherState
 ) & {
     earliest?: EarliestReach | null;
+    encounterLabel?: string;
 };
 
 function humanizeSettings(settings: string | undefined) {
@@ -79,12 +80,14 @@ const SearcherTable = memo(function SearcherTable({
     isFRLG,
     gameConsole,
     isMultiMethod,
+    isMultiEncounter,
 }: {
     rows: EnrichedSearcherRow[];
     isStatic: boolean;
     isFRLG: boolean;
     gameConsole: string;
     isMultiMethod: boolean;
+    isMultiEncounter: boolean;
 }) {
     const [_, setSearchParams] = useSearchParams();
 
@@ -109,6 +112,7 @@ const SearcherTable = memo(function SearcherTable({
                 <TableHead>
                     <TableRow>
                         <TableCell>Seed</TableCell>
+                        {isMultiEncounter && <TableCell>Location</TableCell>}
                         {isMultiMethod && <TableCell>Method</TableCell>}
                         {!isStatic && <TableCell>Slot</TableCell>}
                         {!isStatic && <TableCell>Level</TableCell>}
@@ -137,6 +141,11 @@ const SearcherTable = memo(function SearcherTable({
                         return (
                             <TableRow key={index}>
                                 <TableCell>{hexSeed(row.seed, 32)}</TableCell>
+                                {isMultiEncounter && (
+                                    <TableCell>
+                                        {row.encounterLabel ?? ""}
+                                    </TableCell>
+                                )}
                                 {isMultiMethod && (
                                     <TableCell>
                                         {
